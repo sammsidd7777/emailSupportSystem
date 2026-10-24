@@ -38,7 +38,14 @@ export default function AgentTicketDetails() {
     skip: !ticketId,
   });
 
-  const {data:oldMSG}=useGetMessagesByTicketIdQuery();
+  const {
+  data: oldMSG,
+  isLoading: messagesLoading,
+  isError: messagesError,
+  refetch: refetchMessages,
+} = useGetMessagesByTicketIdQuery(ticketId, {
+  skip: !ticketId,
+});
 
   const [replyToTicket, { isLoading: sending }] =
     useReplyToTicketMutation();
@@ -58,17 +65,22 @@ export default function AgentTicketDetails() {
     data?.data ??
     null;
 
-  const messages =
-    oldMSG?.messages ??
-    oldMSG?.messages ??
-    oldMSG?.data?.messages ??
-    oldMSG?.data?.data?.messages ??
-    [];
+const messages =
+  oldMSG?.messages ??
+  oldMSG?.data?.messages ??
+  oldMSG?.data?.data?.messages ??
+  oldMSG?.data?.data ??
+  oldMSG?.data ??
+  [];
 
+const normalizedMessages = Array.isArray(messages)
+  ? messages
+  : Array.isArray(messages?.messages)
+    ? messages.messages
+    : [];
 
-    console.log(messages,"api responce check")
-
-  const normalizedMessages = Array.isArray(messages) ? messages : [];
+    console.log("Messages API response:", oldMSG);
+console.log("Normalized messages:", normalizedMessages);
 
   const currentStatus = String(ticket?.status ?? "open").toLowerCase();
 
@@ -92,7 +104,10 @@ export default function AgentTicketDetails() {
       setMessage("");
       setFeedback("Reply sent successfully.");
 
-      await refetch();
+      await Promise.all([
+  refetch(),
+  refetchMessages(),
+]);
     } catch (err) {
       setFeedback(
         err?.data?.message ||
