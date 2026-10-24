@@ -119,7 +119,7 @@ export default function AgentTicketChat({
   return (
     <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-5 sm:p-6">
+      {/* <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-5 sm:p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
             <MessageSquare size={21} />
@@ -149,7 +149,7 @@ export default function AgentTicketChat({
             className={isFetching ? "animate-spin" : ""}
           />
         </button>
-      </div>
+      </div> */}
 
       {/* Scrollable chat history */}
       <div className="h-[420px] overflow-y-auto overscroll-contain bg-slate-50/70 p-4 sm:h-[520px] sm:p-6">
