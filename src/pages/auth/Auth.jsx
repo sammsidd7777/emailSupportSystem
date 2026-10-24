@@ -1,9 +1,7 @@
-
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import {
-  Headphones,
   Mail,
   LockKeyhole,
   UserRound,
@@ -15,6 +13,9 @@ import {
   ShieldCheck,
   ChevronLeft,
   KeyRound,
+  MessageSquareText,
+  Clock3,
+  CheckCircle2,
 } from "lucide-react";
 
 import {
@@ -25,9 +26,9 @@ import {
   useVerifyOtpMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
-} from "../services/RTK/authApi";
+} from "../../services/RTK/authApi";
 
-import { loginSuccess } from "../services/RTK/authSlice";
+import { loginSuccess } from "../../services/authSlice";
 
 const initialValues = {
   Name: "",
@@ -37,6 +38,58 @@ const initialValues = {
   confirmPassword: "",
   Otp: "",
 };
+
+/* ---------- BitMax logo (inline SVG, no external asset needed) ---------- */
+function BitMaxMark({ size = 44 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="bm-grad" x1="6" y1="4" x2="42" y2="44">
+          <stop offset="0" stopColor="#fdeaa8" />
+          <stop offset="0.5" stopColor="#e5b84b" />
+          <stop offset="1" stopColor="#a8761a" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M24 3 42 13.5v21L24 45 6 34.5v-21L24 3Z"
+        fill="url(#bm-grad)"
+        fillOpacity="0.14"
+        stroke="url(#bm-grad)"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18 14v20m0-20h6.5a5 5 0 0 1 0 10H18m0 0h7.5a5 5 0 0 1 0 10H18"
+        stroke="url(#bm-grad)"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BitMaxLogo({ size = 44 }) {
+  return (
+    <div className="flex items-center gap-3">
+      <BitMaxMark size={size} />
+      <div className="leading-none">
+        <div className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 bg-clip-text text-xl font-semibold tracking-[0.22em] text-transparent">
+          BITMAX
+        </div>
+        <div className="mt-1.5 text-[11px] tracking-[0.12em] text-amber-100/50">
+          Customer support portal
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -157,7 +210,6 @@ export default function Auth() {
         await registerUser(payload).unwrap();
 
         setValues(initialValues);
-        setMessage("Account created successfully. Please sign in.");
         switchSection("login");
         setMessage("Account created successfully. Please sign in.");
         return;
@@ -188,7 +240,6 @@ export default function Auth() {
           Email: values.Email,
         }).unwrap();
 
-        setMessage("If the account exists, password reset instructions have been sent.");
         switchSection("reset");
         setMessage("Enter your email, reset OTP and new password.");
         return;
@@ -247,15 +298,23 @@ export default function Auth() {
     }
   };
 
+  /* ---------- Shared styles ---------- */
   const inputClass =
-    "w-full rounded-xl border border-white/80 bg-white/20 py-3 pl-11 pr-11 text-sm text-neutral-800 placeholder:text-neutral-500 outline-none backdrop-blur-xl transition duration-300 focus:border-white focus:bg-white/50 focus:ring-4 focus:ring-white/30";
+    "w-full rounded-xl border border-white/10 bg-white/[0.04] py-3 pl-11 pr-11 text-sm text-white placeholder:text-white/35 outline-none transition duration-300 hover:border-white/20 focus:border-amber-300/60 focus:bg-white/[0.07] focus:ring-4 focus:ring-amber-300/10";
+
+  const iconClass =
+    "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/45";
+
+  const pillClass = (active) =>
+    `rounded-full border px-4 py-2 text-xs font-semibold transition ${
+      active
+        ? "border-amber-300/40 bg-amber-300/10 text-amber-100 shadow-[inset_0_1px_0_rgba(253,234,168,0.2)]"
+        : "border-white/10 bg-white/[0.03] text-white/55 hover:bg-white/10 hover:text-white"
+    }`;
 
   const field = (name, placeholder, Icon, type = "text") => (
     <div className="relative">
-      <Icon
-        size={17}
-        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500"
-      />
+      <Icon size={17} className={iconClass} />
 
       <input
         name={name}
@@ -280,10 +339,7 @@ export default function Auth() {
 
   const passwordField = (name, placeholder) => (
     <div className="relative">
-      <LockKeyhole
-        size={17}
-        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500"
-      />
+      <LockKeyhole size={17} className={iconClass} />
 
       <input
         name={name}
@@ -293,7 +349,9 @@ export default function Auth() {
         placeholder={placeholder}
         required
         minLength={8}
-        autoComplete="current-password"
+        autoComplete={
+          section === "login" ? "current-password" : "new-password"
+        }
         className={inputClass}
       />
 
@@ -301,7 +359,7 @@ export default function Auth() {
         type="button"
         aria-label={showPassword ? "Hide password" : "Show password"}
         onClick={() => setShowPassword((prev) => !prev)}
-        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-500 transition hover:text-black"
+        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/45 transition hover:text-white"
       >
         {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
       </button>
@@ -316,92 +374,137 @@ export default function Auth() {
   };
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-3 py-8 sm:px-6">
-      {/* Pure white background with subtle neutral glass lighting */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white blur-[100px]" />
-        <div className="absolute -right-24 top-1/4 h-96 w-96 rounded-full bg-neutral-100/70 blur-[110px]" />
-        <div className="absolute -bottom-32 left-1/3 h-96 w-96 rounded-full bg-white blur-[100px]" />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#070605] px-3 py-8 text-white sm:px-6">
+      {/* Component-scoped animation */}
+      <style>{`
+        @keyframes bm-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-14px) } }
+        @keyframes bm-drift { 0%,100% { transform: translate(0,0) scale(1) } 50% { transform: translate(40px,-30px) scale(1.08) } }
+        .bm-float { animation: bm-float 7s ease-in-out infinite; }
+        .bm-drift { animation: bm-drift 16s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .bm-float, .bm-drift { animation: none; }
+        }
+      `}</style>
 
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_10%,rgba(245,245,245,0.35)_100%)]" />
+      {/* ---------- Company-style background ---------- */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        {/* Colour glows */}
+        <div className="bm-drift absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-amber-600/25 blur-[130px]" />
+        <div
+          className="bm-drift absolute -bottom-40 -right-24 h-[30rem] w-[30rem] rounded-full bg-yellow-500/15 blur-[140px]"
+          style={{ animationDelay: "-6s" }}
+        />
+        <div
+          className="bm-drift absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 rounded-full bg-orange-700/15 blur-[130px]"
+          style={{ animationDelay: "-11s" }}
+        />
+
+        {/* Fine grid */}
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #f5d78a 1px, transparent 1px), linear-gradient(to bottom, #f5d78a 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+            maskImage:
+              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          }}
+        />
+
+        {/* Large watermark logos */}
+        <div className="absolute -right-24 top-10 hidden opacity-[0.05] lg:block">
+          <BitMaxMark size={420} />
+        </div>
+        <div className="absolute -left-20 bottom-0 hidden opacity-[0.04] lg:block">
+          <BitMaxMark size={320} />
+        </div>
+
+        {/* Vignette */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(7,6,5,0.88)_100%)]" />
       </div>
 
-      {/* Main translucent glass container */}
-      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/80 bg-white/20 shadow-[0_25px_80px_rgba(0,0,0,0.08)] backdrop-blur-3xl md:min-h-[650px] md:grid-cols-[0.9fr_1.1fr]">
+      {/* ---------- Main dark glass container ---------- */}
+      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-amber-200/15 bg-white/[0.04] shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(253,234,168,0.12)] backdrop-blur-2xl md:min-h-[680px] md:grid-cols-[0.95fr_1.05fr]">
         {/* Branding panel */}
-        <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-white/60 bg-white/10 p-8 backdrop-blur-2xl md:flex lg:p-10">
-          <div className="pointer-events-none absolute -right-20 -top-16 h-64 w-64 rounded-full border border-white/80" />
-          <div className="pointer-events-none absolute -right-8 -top-4 h-44 w-44 rounded-full border border-white/70" />
-          <div className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-white/60 blur-3xl" />
+        <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-amber-200/10 bg-gradient-to-br from-amber-200/[0.06] to-transparent p-8 md:flex lg:p-10">
+          <div className="pointer-events-none absolute -right-24 -top-20 h-72 w-72 rounded-full border border-white/10" />
+          <div className="pointer-events-none absolute -right-10 -top-6 h-48 w-48 rounded-full border border-white/10" />
+          <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-amber-500/15 blur-3xl" />
 
-          <div className="relative flex items-center gap-3">
-            <div className="rounded-2xl border border-white/90 bg-white/40 p-3 text-neutral-700 shadow-lg shadow-black/[0.03] backdrop-blur-xl">
-              <Headphones size={25} />
-            </div>
-
-            <div>
-              <h2 className="text-xl font-bold tracking-wide text-neutral-800">
-                BITMAX
-              </h2>
-              <p className="text-[11px] tracking-wide text-neutral-500">
-                CUSTOMER SUPPORT PORTAL
-              </p>
-            </div>
+          <div className="relative">
+            <BitMaxLogo />
           </div>
 
-          <div className="relative py-10">
-            <div className="mb-5 inline-flex rounded-2xl border border-white/90 bg-white/40 p-3 text-neutral-700 shadow-sm backdrop-blur-xl">
-              <ShieldCheck size={28} />
-            </div>
-
-            <h1 className="max-w-sm text-4xl font-semibold leading-tight tracking-tight text-neutral-800">
+          <div className="relative py-8">
+            <h1 className="max-w-sm text-4xl font-semibold leading-[1.15] tracking-tight text-white">
               Every issue deserves a solution.
             </h1>
 
-            <p className="mt-4 max-w-sm text-sm leading-7 text-neutral-600">
+            <p className="mt-4 max-w-sm text-sm leading-7 text-white/60">
               Raise support tickets, follow updates, and manage every
               conversation from one simple workspace.
             </p>
 
-            <div className="mt-8 space-y-4 text-sm text-neutral-600">
+            {/* Product preview card */}
+            <div className="bm-float mt-8 max-w-sm rounded-2xl border border-white/10 bg-black/30 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur-xl">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl border border-white/10 bg-white/10 p-2 text-amber-200">
+                  <MessageSquareText size={16} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium text-white">
+                      Payment not reflecting
+                    </p>
+                    <span className="flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                      <CheckCircle2 size={10} />
+                      Resolved
+                    </span>
+                  </div>
+
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
+                    <Clock3 size={12} />
+                    Updated moments ago by your support agent
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-7 space-y-3.5 text-sm text-white/65">
               <div className="flex items-center gap-3">
-                <ShieldCheck size={17} />
+                <ShieldCheck size={17} className="text-amber-300" />
                 Secure account access
               </div>
 
               <div className="flex items-center gap-3">
-                <Mail size={17} />
+                <Mail size={17} className="text-yellow-200" />
                 Email notifications
               </div>
 
               <div className="flex items-center gap-3">
-                <KeyRound size={17} />
+                <KeyRound size={17} className="text-amber-400" />
                 Password and OTP options
               </div>
             </div>
           </div>
 
-          <p className="relative text-xs tracking-wide text-neutral-500">
+          <p className="relative text-xs tracking-wide text-white/40">
             Secure · Simple · Organized
           </p>
         </aside>
 
         {/* Authentication panel */}
-        <section className="relative flex flex-col justify-center bg-white/20 p-5 backdrop-blur-3xl sm:p-8 lg:p-12">
-          <div className="mb-6 flex items-center justify-between md:hidden">
-            <div className="flex items-center gap-2">
-              <div className="rounded-xl border border-white/90 bg-white/50 p-2.5 text-neutral-700 shadow-sm">
-                <Headphones size={21} />
-              </div>
-
-              <span className="font-bold tracking-wide text-neutral-800">
-                BITMAX
-              </span>
-            </div>
+        <section className="relative flex flex-col justify-center bg-black/25 p-5 sm:p-8 lg:p-12">
+          {/* Mobile logo */}
+          <div className="mb-7 md:hidden">
+            <BitMaxLogo size={38} />
           </div>
 
           <div className="mb-6 flex items-center justify-between">
-            <div className="text-xs font-medium uppercase tracking-[0.15em] text-neutral-500">
+            <div className="text-xs font-medium tracking-wide text-white/45">
               Secure authentication
             </div>
 
@@ -409,7 +512,7 @@ export default function Auth() {
               <button
                 type="button"
                 onClick={() => switchSection("login")}
-                className="ml-auto flex items-center gap-1 text-xs font-semibold text-neutral-500 transition hover:text-black"
+                className="ml-auto flex items-center gap-1 text-xs font-semibold text-white/55 transition hover:text-white"
               >
                 <ChevronLeft size={15} />
                 Back to login
@@ -418,16 +521,16 @@ export default function Auth() {
           </div>
 
           {(section === "login" || section === "register") && (
-            <div className="mb-6 grid grid-cols-2 rounded-xl border border-white/80 bg-white/20 p-1.5 backdrop-blur-xl">
+            <div className="mb-6 grid grid-cols-2 rounded-xl border border-white/10 bg-white/[0.04] p-1.5">
               {["login", "register"].map((item) => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => switchSection(item)}
-                  className={`rounded-lg py-2.5 text-sm font-semibold capitalize transition-all duration-300 ${
+                  className={`rounded-lg py-2.5 text-sm font-semibold transition-all duration-300 ${
                     section === item
-                      ? "border border-white/90 bg-white/60 text-neutral-800 shadow-[0_3px_12px_rgba(0,0,0,0.04)]"
-                      : "text-neutral-500 hover:bg-white/30 hover:text-neutral-800"
+                      ? "border border-amber-300/40 bg-amber-300/10 text-amber-100 shadow-[inset_0_1px_0_rgba(253,234,168,0.2)]"
+                      : "text-white/50 hover:bg-white/5 hover:text-white"
                   }`}
                 >
                   {item === "login" ? "Login" : "Register"}
@@ -436,11 +539,11 @@ export default function Auth() {
             </div>
           )}
 
-          <h2 className="text-3xl font-semibold tracking-tight text-neutral-800">
+          <h2 className="text-3xl font-semibold tracking-tight text-white">
             {titles[section][0]}
           </h2>
 
-          <p className="mb-6 mt-2 text-sm leading-6 text-neutral-500">
+          <p className="mb-6 mt-2 text-sm leading-6 text-white/55">
             {titles[section][1]}
           </p>
 
@@ -453,11 +556,7 @@ export default function Auth() {
                   setError("");
                   setMessage("");
                 }}
-                className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                  loginMode === "password"
-                    ? "border-white/90 bg-white/60 text-neutral-800 shadow-sm"
-                    : "border-white/60 bg-white/15 text-neutral-500 hover:bg-white/50"
-                }`}
+                className={pillClass(loginMode === "password")}
               >
                 Password login
               </button>
@@ -469,11 +568,7 @@ export default function Auth() {
                   setError("");
                   setMessage("");
                 }}
-                className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                  loginMode === "otp"
-                    ? "border-white/90 bg-white/60 text-neutral-800 shadow-sm"
-                    : "border-white/60 bg-white/15 text-neutral-500 hover:bg-white/50"
-                }`}
+                className={pillClass(loginMode === "otp")}
               >
                 Login with OTP
               </button>
@@ -500,7 +595,7 @@ export default function Auth() {
                   <button
                     type="button"
                     onClick={() => switchSection("forgot")}
-                    className="text-xs font-medium text-neutral-500 transition hover:text-black hover:underline"
+                    className="text-xs font-medium text-white/55 transition hover:text-white hover:underline"
                   >
                     Forgot password?
                   </button>
@@ -516,7 +611,7 @@ export default function Auth() {
                   type="button"
                   onClick={handleSendOtp}
                   disabled={busy}
-                  className="w-full rounded-xl border border-white/80 bg-white/25 py-3 text-sm font-semibold text-neutral-700 shadow-sm backdrop-blur-xl transition hover:bg-white/60 disabled:opacity-50"
+                  className="w-full rounded-xl border border-amber-300/30 bg-amber-300/[0.06] py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/15 disabled:opacity-50"
                 >
                   {sendOtpState.isLoading ? "Sending OTP..." : "Send login OTP"}
                 </button>
@@ -529,7 +624,7 @@ export default function Auth() {
               <>
                 {field("Email", "Registered email address", Mail, "email")}
 
-                <p className="text-xs leading-5 text-neutral-500">
+                <p className="text-xs leading-5 text-white/50">
                   We'll send reset instructions if an account matches this
                   email.
                 </p>
@@ -548,7 +643,7 @@ export default function Auth() {
             {error && (
               <p
                 role="alert"
-                className="rounded-xl border border-red-200/80 bg-white/70 p-3 text-xs text-red-600 backdrop-blur-xl"
+                className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs text-red-200"
               >
                 {error}
               </p>
@@ -557,7 +652,7 @@ export default function Auth() {
             {message && (
               <p
                 role="status"
-                className="rounded-xl border border-white/80 bg-white/35 p-3 text-xs text-neutral-700 backdrop-blur-xl"
+                className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-xs text-emerald-200"
               >
                 {message}
               </p>
@@ -566,7 +661,7 @@ export default function Auth() {
             <button
               type="submit"
               disabled={busy}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/90 bg-white/45 py-3.5 text-sm font-semibold text-neutral-800 shadow-[0_8px_25px_rgba(0,0,0,0.06)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-[0_12px_30px_rgba(0,0,0,0.09)] focus:outline-none focus:ring-4 focus:ring-white/60 disabled:cursor-not-allowed disabled:opacity-60"
+              className="group flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200/50 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_10px_30px_rgba(217,160,40,0.35),inset_0_1px_0_rgba(255,255,255,0.5)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(217,160,40,0.5),inset_0_1px_0_rgba(255,255,255,0.6)] hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/40 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
             >
               {busy ? (
                 <>
@@ -591,12 +686,12 @@ export default function Auth() {
           </form>
 
           {section === "login" && (
-            <p className="mt-6 text-center text-xs text-neutral-500">
+            <p className="mt-6 text-center text-xs text-white/50">
               New to BitMax?{" "}
               <button
                 type="button"
                 onClick={() => switchSection("register")}
-                className="font-semibold text-neutral-800 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-700"
+                className="font-semibold text-amber-200 underline decoration-amber-300/40 underline-offset-4 hover:decoration-amber-300"
               >
                 Create an account
               </button>
@@ -604,19 +699,19 @@ export default function Auth() {
           )}
 
           {section === "register" && (
-            <p className="mt-6 text-center text-xs text-neutral-500">
+            <p className="mt-6 text-center text-xs text-white/50">
               Already have an account?{" "}
               <button
                 type="button"
                 onClick={() => switchSection("login")}
-                className="font-semibold text-neutral-800 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-700"
+                className="font-semibold text-amber-200 underline decoration-amber-300/40 underline-offset-4 hover:decoration-amber-300"
               >
                 Sign in
               </button>
             </p>
           )}
 
-          <p className="mt-5 text-center text-[10px] leading-5 text-neutral-400">
+          <p className="mt-5 text-center text-[10px] leading-5 text-white/35">
             By continuing, you agree to use BitMax responsibly.
           </p>
         </section>
