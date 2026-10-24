@@ -52,6 +52,7 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [purpose,setPurpose]=useState("");
 
   const [registerUser, registerState] = useRegistationMutation();
   const [loginUser, loginState] = useLoginMutation();
@@ -126,6 +127,8 @@ export default function Auth() {
           setError("Passwords do not match.");
           return;
         }
+    
+
 
         const { confirmPassword, Otp, ...payload } = values;
         const res = await registerUser(payload).unwrap();
@@ -137,6 +140,7 @@ export default function Auth() {
       }
 
       if (section === "login" && loginMode === "password") {
+        
         const res = await loginUser({
           Email: values.Email,
           Password: values.Password,
@@ -157,6 +161,8 @@ export default function Auth() {
         const res = await loginOtp({
           Email: values.Email,
           Otp: values.Otp,
+          purpose:"login "
+
         }).unwrap();
 
         const user = res?.user || res?.data?.user;
