@@ -80,14 +80,14 @@ export default function AgentTicketInfo({
       : {};
 
   const customerName =
-    requester?.name ||
+    requester?.Name ||
     requester?.fullName ||
-    ticket?.requesterName ||
+    ticket?.RequesterName ||
     ticket?.customerName ||
     "Customer";
 
   const customerEmail =
-    requester?.email ||
+    requester?.Email ||
     ticket?.requesterEmail ||
     ticket?.customerEmail ||
     ticket?.email ||
@@ -123,7 +123,7 @@ export default function AgentTicketInfo({
             </p>
 
             <h2 className="mt-1 break-words text-lg font-bold text-slate-900">
-              {ticket?.subject || "Untitled ticket"}
+              {ticket?.Subject || "Untitled ticket"}
             </h2>
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -156,7 +156,7 @@ export default function AgentTicketInfo({
           </h3>
 
           <p className="whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-            {ticket?.description || "No description provided."}
+            {ticket?.Description || "No description provided."}
           </p>
         </div>
 
