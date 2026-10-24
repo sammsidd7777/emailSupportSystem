@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -74,42 +73,43 @@ const AgentLayout = () => {
   const sections = ["Overview", "Tickets", "Account"];
 
   return (
-    <div className="min-h-screen bg-[#f5f7fb] text-slate-800">
+    <div className="min-h-screen bg-[#050505] text-neutral-200">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <button
           type="button"
           aria-label="Close sidebar"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden"
         />
       )}
 
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col
-          bg-[#111827] text-white shadow-2xl shadow-slate-950/10
+          border-r border-[#d4af37]/20 bg-black text-white
+          shadow-2xl shadow-black
           transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0`}
       >
         {/* Brand */}
-        <div className="flex h-[82px] items-center justify-between border-b border-white/[0.08] px-6">
+        <div className="flex h-[82px] items-center justify-between border-b border-[#d4af37]/20 px-6">
           <button
             type="button"
             onClick={() => navigate("/agent/dashboard")}
-            className="flex items-center gap-3 text-left"
+            className="flex items-center gap-3 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/60"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-600/25">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f5d77a] via-[#d4af37] to-[#9a7420] text-black shadow-lg shadow-[#d4af37]/25">
               <Headset size={23} strokeWidth={2.2} />
             </div>
 
             <div>
-              <h1 className="text-[17px] font-extrabold tracking-tight">
-                BitMax<span className="text-blue-400">.</span>
+              <h1 className="text-[17px] font-extrabold tracking-tight text-white">
+                BitMax<span className="text-[#d4af37]">.</span>
               </h1>
-              <p className="mt-0.5 text-[11px] font-medium tracking-wide text-slate-400">
-                SUPPORT WORKSPACE
+              <p className="mt-0.5 text-[11px] font-medium tracking-wide text-neutral-500">
+                Support workspace
               </p>
             </div>
           </button>
@@ -118,7 +118,7 @@ const AgentLayout = () => {
             type="button"
             aria-label="Close sidebar"
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 md:hidden"
+            className="rounded-lg p-2 text-neutral-400 transition hover:bg-[#d4af37]/10 hover:text-[#f5d77a] md:hidden"
           >
             <X size={19} />
           </button>
@@ -126,31 +126,31 @@ const AgentLayout = () => {
 
         {/* Agent profile card */}
         <div className="px-4 py-5">
-          <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-4">
+          <div className="rounded-2xl border border-[#d4af37]/25 bg-gradient-to-br from-[#d4af37]/10 to-transparent p-4">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-lg font-bold text-white shadow-lg">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f5d77a] via-[#d4af37] to-[#9a7420] text-lg font-bold text-black shadow-lg shadow-[#d4af37]/20">
                   A
                 </div>
-                <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-[3px] border-[#172033] bg-emerald-400" />
+                <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-[3px] border-black bg-emerald-400" />
               </div>
 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-white">
                   Support Agent
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-neutral-500">
                   Customer Support
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 border-t border-white/[0.08] pt-3">
-              <ShieldCheck size={15} className="text-emerald-400" />
-              <span className="text-[11px] font-medium text-slate-300">
+            <div className="mt-4 flex items-center gap-2 border-t border-[#d4af37]/15 pt-3">
+              <ShieldCheck size={15} className="text-[#d4af37]" />
+              <span className="text-[11px] font-medium text-neutral-300">
                 Agent account
               </span>
-              <span className="ml-auto rounded-full bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold text-emerald-300">
+              <span className="ml-auto rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-2 py-1 text-[10px] font-semibold text-[#f5d77a]">
                 Active
               </span>
             </div>
@@ -166,7 +166,7 @@ const AgentLayout = () => {
 
             return (
               <div key={section} className="mb-6">
-                <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                <p className="mb-2 px-3 text-[11px] font-semibold tracking-wide text-[#d4af37]/70">
                   {section}
                 </p>
 
@@ -181,17 +181,17 @@ const AgentLayout = () => {
                         end
                         onClick={() => setSidebarOpen(false)}
                         className={({ isActive }) =>
-                          `group relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-[13px] font-medium transition-all duration-200 ${
+                          `group relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-[13px] font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/60 ${
                             isActive
-                              ? "bg-blue-600 text-white shadow-lg shadow-blue-950/30"
-                              : "text-slate-400 hover:bg-white/[0.06] hover:text-white"
+                              ? "bg-gradient-to-r from-[#d4af37] to-[#b8892b] font-semibold text-black shadow-lg shadow-[#d4af37]/20"
+                              : "text-neutral-400 hover:bg-[#d4af37]/10 hover:text-[#f5d77a]"
                           }`
                         }
                       >
                         {({ isActive }) => (
                           <>
                             {isActive && (
-                              <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-cyan-300" />
+                              <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-black/70" />
                             )}
 
                             <Icon
@@ -199,15 +199,21 @@ const AgentLayout = () => {
                               strokeWidth={isActive ? 2.3 : 1.8}
                               className={
                                 isActive
-                                  ? "text-white"
-                                  : "text-slate-400 transition group-hover:text-blue-300"
+                                  ? "text-black"
+                                  : "text-neutral-500 transition group-hover:text-[#d4af37]"
                               }
                             />
 
                             <span className="flex-1">{item.name}</span>
 
                             {item.soon && (
-                              <span className="rounded-md border border-amber-300/10 bg-amber-300/10 px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide text-amber-300">
+                              <span
+                                className={`rounded-md border px-1.5 py-1 text-[9px] font-bold tracking-wide ${
+                                  isActive
+                                    ? "border-black/20 bg-black/10 text-black"
+                                    : "border-[#d4af37]/25 bg-[#d4af37]/10 text-[#d4af37]"
+                                }`}
+                              >
                                 Soon
                               </span>
                             )}
@@ -215,7 +221,7 @@ const AgentLayout = () => {
                             {isActive && (
                               <ChevronRight
                                 size={15}
-                                className="text-blue-100"
+                                className="text-black/70"
                               />
                             )}
                           </>
@@ -231,32 +237,32 @@ const AgentLayout = () => {
 
         {/* Help card */}
         <div className="px-4 pb-4">
-          <div className="rounded-2xl border border-blue-400/15 bg-gradient-to-br from-blue-500/15 to-indigo-500/5 p-4">
+          <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-br from-[#d4af37]/10 to-transparent p-4">
             <div className="mb-2 flex items-center gap-2">
-              <Sparkles size={16} className="text-blue-300" />
+              <Sparkles size={16} className="text-[#d4af37]" />
               <span className="text-xs font-bold text-white">
                 Need assistance?
               </span>
             </div>
 
-            <p className="text-[11px] leading-5 text-slate-400">
+            <p className="text-[11px] leading-5 text-neutral-500">
               Keep your workspace organized and respond to customer tickets.
             </p>
           </div>
         </div>
 
         {/* Logout */}
-        <div className="border-t border-white/[0.08] p-4">
+        <div className="border-t border-[#d4af37]/20 p-4">
           <button
             type="button"
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-sm font-semibold text-slate-400 transition hover:border-red-400/10 hover:bg-red-500/10 hover:text-red-300"
+            className="flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-sm font-semibold text-neutral-400 transition hover:border-red-400/20 hover:bg-red-500/10 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/60"
           >
             <LogOut size={18} />
             Sign out
           </button>
 
-          <p className="mt-3 text-center text-[10px] text-slate-600">
+          <p className="mt-3 text-center text-[10px] text-neutral-600">
             BitMax Support Portal · v1.0
           </p>
         </div>
@@ -265,34 +271,32 @@ const AgentLayout = () => {
       {/* Main content */}
       <div className="min-h-screen md:ml-[270px]">
         {/* Top navbar */}
-        <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-[#d4af37]/20 bg-black/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               aria-label="Open sidebar"
               onClick={() => setSidebarOpen(true)}
-              className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-slate-50 md:hidden"
+              className="rounded-xl border border-[#d4af37]/30 bg-black p-2.5 text-[#d4af37] transition hover:bg-[#d4af37]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/60 md:hidden"
             >
               <Menu size={20} />
             </button>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+              <div className="flex items-center gap-2 text-xs text-neutral-500">
                 <span>Workspace</span>
-                <ChevronRight size={13} />
-                <span className="truncate font-medium text-slate-600">
+                <ChevronRight size={13} className="text-[#d4af37]/60" />
+                <span className="truncate text-sm font-semibold text-[#f5d77a]">
                   {activePage}
                 </span>
               </div>
-
-            
             </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 sm:flex">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span className="text-[11px] font-semibold text-emerald-700">
+            <div className="hidden items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 sm:flex">
+              <span className="h-2 w-2 rounded-full bg-[#d4af37]" />
+              <span className="text-[11px] font-semibold text-[#f5d77a]">
                 Workspace active
               </span>
             </div>
@@ -300,17 +304,15 @@ const AgentLayout = () => {
             <button
               type="button"
               onClick={() => navigate("/agent/profile")}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-3 transition hover:border-blue-200 hover:bg-blue-50"
+              className="flex items-center gap-2 rounded-xl border border-[#d4af37]/25 bg-black p-1.5 pr-3 transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/60"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 text-sm font-extrabold text-blue-700">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#f5d77a] via-[#d4af37] to-[#9a7420] text-sm font-extrabold text-black">
                 A
               </div>
 
               <div className="hidden text-left sm:block">
-                <p className="text-xs font-bold text-slate-800">
-                  My Account
-                </p>
-                <p className="mt-0.5 text-[10px] text-slate-500">
+                <p className="text-xs font-bold text-white">My Account</p>
+                <p className="mt-0.5 text-[10px] text-neutral-500">
                   Support Agent
                 </p>
               </div>
@@ -326,11 +328,11 @@ const AgentLayout = () => {
         </main>
 
         {/* Footer */}
-        <footer className="flex flex-col gap-2 border-t border-slate-200/80 bg-white/70 px-6 py-4 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <footer className="flex flex-col gap-2 border-t border-[#d4af37]/20 bg-black/70 px-6 py-4 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <p>© {new Date().getFullYear()} BitMax Support Portal</p>
 
           <div className="flex items-center gap-2">
-            <CircleHelp size={14} />
+            <CircleHelp size={14} className="text-[#d4af37]/70" />
             <span>Agent Workspace</span>
           </div>
         </footer>
