@@ -30,7 +30,7 @@ export const authApi = createApi({
 
     loginWithOtp: builder.mutation({
       query: (body) => ({
-        url: "/login-otp",
+        url: "/verify-otp",
         method: "POST",
         body,
       }),
