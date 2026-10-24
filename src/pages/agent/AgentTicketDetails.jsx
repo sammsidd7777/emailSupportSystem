@@ -81,7 +81,7 @@ const normalizedMessages = Array.isArray(messages)
 
     : [];
 
-    console.log("Messages API response:", oldMSG.Messages);
+    console.log("Messages API response:", oldMSG?.Messages || oldMSG?.message);
 console.log("Normalized messages:", normalizedMessages);
 
   const currentStatus = String(ticket?.status ?? "open").toLowerCase();
