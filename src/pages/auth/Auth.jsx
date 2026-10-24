@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useDispatch } from "react-redux";
 import {
+  useRegistationMutation,
+  useLoginMutation,
+  useLoginWithOtpMutation,
+  useSendOtpMutation,
+  useVerifyOtpMutation,
+  useForgotPasswordMutation,
+  useResetPasswordMutation,
+} from "../../services/RTK/authApi";
+
+import {
+  Headphones,
   Mail,
   LockKeyhole,
   UserRound,
@@ -13,21 +23,8 @@ import {
   ShieldCheck,
   ChevronLeft,
   KeyRound,
-  MessageSquareText,
-  Clock3,
-  CheckCircle2,
 } from "lucide-react";
-
-import {
-  useRegistationMutation,
-  useLoginMutation,
-  useLoginWithOtpMutation,
-  useSendOtpMutation,
-  useVerifyOtpMutation,
-  useForgotPasswordMutation,
-  useResetPasswordMutation,
-} from "../../services/RTK/authApi";
-
+import { useDispatch } from "react-redux";
 import { loginSuccess } from "../../services/authSlice";
 
 const initialValues = {
@@ -39,69 +36,17 @@ const initialValues = {
   Otp: "",
 };
 
-/* ---------- BitMax logo (inline SVG, no external asset needed) ---------- */
-function BitMaxMark({ size = 44 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="bm-grad" x1="6" y1="4" x2="42" y2="44">
-          <stop offset="0" stopColor="#fdeaa8" />
-          <stop offset="0.5" stopColor="#e5b84b" />
-          <stop offset="1" stopColor="#a8761a" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M24 3 42 13.5v21L24 45 6 34.5v-21L24 3Z"
-        fill="url(#bm-grad)"
-        fillOpacity="0.14"
-        stroke="url(#bm-grad)"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M18 14v20m0-20h6.5a5 5 0 0 1 0 10H18m0 0h7.5a5 5 0 0 1 0 10H18"
-        stroke="url(#bm-grad)"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function BitMaxLogo({ size = 44 }) {
-  return (
-    <div className="flex items-center gap-3">
-      <BitMaxMark size={size} />
-      <div className="leading-none">
-        <div className="bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 bg-clip-text text-xl font-semibold tracking-[0.22em] text-transparent">
-          BITMAX
-        </div>
-        <div className="mt-1.5 text-[11px] tracking-[0.12em] text-amber-100/50">
-          Customer support portal
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Auth() {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const requestedMode = searchParams.get("mode");
-  const initialMode = ["register", "forgot", "reset"].includes(requestedMode)
-    ? requestedMode
-    : "login";
+  const initialMode = searchParams.get("mode");
+  const [section, setSection] = useState(
+    ["register", "forgot", "reset"].includes(initialMode)
+      ? initialMode
+      : "login",
+  );
 
-  const [section, setSection] = useState(initialMode);
   const [loginMode, setLoginMode] = useState("password");
   const [values, setValues] = useState(initialValues);
   const [showPassword, setShowPassword] = useState(false);
@@ -110,36 +55,35 @@ export default function Auth() {
 
   const [registerUser, registerState] = useRegistationMutation();
   const [loginUser, loginState] = useLoginMutation();
-  const [loginWithOtp, otpLoginState] = useLoginWithOtpMutation();
+  const [loginOtp, loginOtpState] = useLoginWithOtpMutation();
   const [sendOtp, sendOtpState] = useSendOtpMutation();
   const [verifyOtp, verifyOtpState] = useVerifyOtpMutation();
   const [forgotPassword, forgotState] = useForgotPasswordMutation();
   const [resetPassword, resetState] = useResetPasswordMutation();
 
+  const dispatch = useDispatch();
+
   const busy =
     registerState.isLoading ||
     loginState.isLoading ||
-    otpLoginState.isLoading ||
+    loginOtpState.isLoading ||
     sendOtpState.isLoading ||
     verifyOtpState.isLoading ||
     forgotState.isLoading ||
     resetState.isLoading;
 
-  const update = (event) => {
-    const { name, value } = event.target;
-
+  const update = (e) => {
     setValues((prev) => ({
       ...prev,
-      [name]: value,
+      [e.target.name]: e.target.value,
     }));
-
     setError("");
     setMessage("");
   };
 
-  const switchSection = (nextSection) => {
-    setSection(nextSection);
-    setSearchParams({ mode: nextSection });
+  const switchSection = (next) => {
+    setSection(next);
+    setSearchParams(next === "login" ? {} : { mode: next });
     setError("");
     setMessage("");
   };
@@ -148,50 +92,33 @@ export default function Auth() {
     setError(
       err?.data?.message ||
         err?.data?.error ||
-        err?.error ||
-        "Something went wrong. Please try again."
+        "Something went wrong. Please try again.",
     );
   };
 
-  const goToDashboard = (user) => {
-    const role = String(user?.role || user?.Role || "customer").toLowerCase();
+  const goToDashboard = (res) => {
+    // Adjust these keys to match your actual login response.
+    const user = res?.user || res?.data?.user;
+    const role = String(user?.role || user?.Role || "").toLowerCase();
 
     if (role === "admin") {
       navigate("/admin/dashboard");
-    } else if (["supportagent", "support_agent"].includes(role)) {
+    } else if (role === "supportagent" || role === "support_agent") {
       navigate("/agent/dashboard");
     } else {
       navigate("/user/dashboard");
     }
   };
 
-  const completeLogin = (response) => {
-    const user = response?.user || response?.data?.user;
-    const token = response?.accessToken || response?.token;
-
-    if (!user) {
-      throw new Error("Login succeeded, but user information was not returned.");
-    }
-
-    dispatch(
-      loginSuccess({
-        user,
-        token,
-      })
-    );
-
-    goToDashboard(user);
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setError("");
     setMessage("");
 
     try {
       if (section === "register") {
         if (values.Password.length < 8) {
-          setError("Password must be at least 8 characters long.");
+          setError("Password must contain at least 8 characters.");
           return;
         }
 
@@ -200,54 +127,67 @@ export default function Auth() {
           return;
         }
 
-        const payload = {
-          ...values,
-        };
+        const { confirmPassword, Otp, ...payload } = values;
+        const res = await registerUser(payload).unwrap();
 
-        delete payload.confirmPassword;
-        delete payload.Otp;
-
-        await registerUser(payload).unwrap();
-
+        setMessage(res?.message || "Registration successful.");
         setValues(initialValues);
         switchSection("login");
-        setMessage("Account created successfully. Please sign in.");
         return;
       }
 
-      if (section === "login") {
-        let response;
+      if (section === "login" && loginMode === "password") {
+        const res = await loginUser({
+          Email: values.Email,
+          Password: values.Password,
+        }).unwrap();
 
-        if (loginMode === "password") {
-          response = await loginUser({
-            Email: values.Email,
-            Password: values.Password,
-          }).unwrap();
-        } else {
-          response = await loginWithOtp({
-            Email: values.Email,
-            Otp: values.Otp,
-            purpose: "login",
-          }).unwrap();
+        const user = res?.user || res?.data?.user;
+
+        if (!user) {
+          throw new Error("User details not found in login response");
         }
 
-        completeLogin(response);
+        dispatch(loginSuccess(user));
+        goToDashboard(res);
+        return;
+      }
+
+      if (section === "login" && loginMode === "otp") {
+        const res = await loginOtp({
+          Email: values.Email,
+          Otp: values.Otp,
+        }).unwrap();
+
+        const user = res?.user || res?.data?.user;
+
+        if (!user) {
+          throw new Error("User details not found in login response");
+        }
+
+        dispatch(loginSuccess(user));
+
+        goToDashboard(res);
         return;
       }
 
       if (section === "forgot") {
-        await forgotPassword({
+        const res = await forgotPassword({
           Email: values.Email,
         }).unwrap();
 
-        switchSection("reset");
-        setMessage("Enter your email, reset OTP and new password.");
+        setMessage(
+          res?.message ||
+            "If the account exists, reset instructions have been sent.",
+        );
+        setSection("reset");
+        setSearchParams({ mode: "reset" });
         return;
       }
 
       if (section === "reset") {
         if (values.Password.length < 8) {
-          setError("Password must be at least 8 characters long.");
+          setError("Password must contain at least 8 characters.");
           return;
         }
 
@@ -256,21 +196,22 @@ export default function Auth() {
           return;
         }
 
+        // Verify OTP for password reset.
         await verifyOtp({
           Email: values.Email,
           Otp: values.Otp,
           purpose: "reset-password",
         }).unwrap();
 
-        await resetPassword({
+        const res = await resetPassword({
           Email: values.Email,
           Otp: values.Otp,
           Password: values.Password,
         }).unwrap();
 
         setValues(initialValues);
+        setMessage(res?.message || "Password reset successfully.");
         switchSection("login");
-        setMessage("Password reset successfully. Please sign in.");
       }
     } catch (err) {
       handleError(err);
@@ -287,35 +228,26 @@ export default function Auth() {
     }
 
     try {
-      await sendOtp({
+      const res = await sendOtp({
         Email: values.Email,
         purpose: "login",
       }).unwrap();
 
-      setMessage("OTP sent. Please check your email.");
+      setMessage(res?.message || "OTP sent. Please check your email.");
     } catch (err) {
       handleError(err);
     }
   };
 
-  /* ---------- Shared styles ---------- */
   const inputClass =
-    "w-full rounded-xl border border-white/10 bg-white/[0.04] py-3 pl-11 pr-11 text-sm text-white placeholder:text-white/35 outline-none transition duration-300 hover:border-white/20 focus:border-amber-300/60 focus:bg-white/[0.07] focus:ring-4 focus:ring-amber-300/10";
-
-  const iconClass =
-    "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/45";
-
-  const pillClass = (active) =>
-    `rounded-full border px-4 py-2 text-xs font-semibold transition ${
-      active
-        ? "border-amber-300/40 bg-amber-300/10 text-amber-100 shadow-[inset_0_1px_0_rgba(253,234,168,0.2)]"
-        : "border-white/10 bg-white/[0.03] text-white/55 hover:bg-white/10 hover:text-white"
-    }`;
+    "w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100";
 
   const field = (name, placeholder, Icon, type = "text") => (
     <div className="relative">
-      <Icon size={17} className={iconClass} />
-
+      <Icon
+        size={17}
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+      />
       <input
         name={name}
         type={type}
@@ -339,8 +271,10 @@ export default function Auth() {
 
   const passwordField = (name, placeholder) => (
     <div className="relative">
-      <LockKeyhole size={17} className={iconClass} />
-
+      <LockKeyhole
+        size={17}
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+      />
       <input
         name={name}
         type={showPassword ? "text" : "password"}
@@ -349,17 +283,14 @@ export default function Auth() {
         placeholder={placeholder}
         required
         minLength={8}
-        autoComplete={
-          section === "login" ? "current-password" : "new-password"
-        }
+        autoComplete="new-password"
         className={inputClass}
       />
-
       <button
         type="button"
         aria-label={showPassword ? "Hide password" : "Show password"}
         onClick={() => setShowPassword((prev) => !prev)}
-        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/45 transition hover:text-white"
+        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600"
       >
         {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
       </button>
@@ -367,12 +298,11 @@ export default function Auth() {
   );
 
   const titles = {
-    register: ["Create account", "Join BitMax support in a few steps."],
+    register: ["Create account", "Join SupportDesk in a few steps."],
     login: ["Welcome back", "Sign in to continue to your dashboard."],
     forgot: ["Forgot password?", "Enter your registered email address."],
     reset: ["Reset password", "Verify your OTP and create a new password."],
   };
-
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#070605] px-3 py-8 text-white sm:px-6">
       {/* Component-scoped animation */}
