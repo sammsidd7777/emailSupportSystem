@@ -12,12 +12,10 @@ import {
   useGetAgentTicketByIdQuery,
   useReplyToTicketMutation,
   useUpdateTicketStatusMutation,
-  
 } from "../../services/RTK/agentApi";
 
 import AgentTicketInfo from "./AgentTicketInfo";
 import AgentTicketChat from "./AgentTicketChat";
-import { useGetMessagesByTicketIdQuery } from "../../services/RTK/messageApi";
 
 export default function AgentTicketDetails() {
   const { ticketId } = useParams();
@@ -27,6 +25,7 @@ export default function AgentTicketDetails() {
   const [feedback, setFeedback] = useState("");
   const [newStatus, setNewStatus] = useState("");
 
+  // Fetch ticket details only.
   const {
     data,
     isLoading,
@@ -38,62 +37,38 @@ export default function AgentTicketDetails() {
     skip: !ticketId,
   });
 
-  const {
-  data: oldMSG,
-  isLoading: messagesLoading,
-  isError: messagesError,
-  refetch: refetchMessages,
-} = useGetMessagesByTicketIdQuery(ticketId, {
-  skip: !ticketId,
-});
-
+  // Reply mutation.
   const [replyToTicket, { isLoading: sending }] =
     useReplyToTicketMutation();
 
+  // Ticket status mutation.
   const [updateTicketStatus, { isLoading: updatingStatus }] =
     useUpdateTicketStatusMutation();
 
-  // Support common API response formats.
+  // Extract ticket from common API response formats.
   const ticket =
     data?.ticket ??
     data?.data?.ticket ??
     data?.data?.data?.ticket ??
-    (data?.messages && !Array.isArray(data.messages)
-      ? data.messages
-      : null) ??
     data?.data?.data ??
     data?.data ??
     null;
 
-const messages =
-  oldMSG?.message ??
-  oldMSG?.data?.message ??
-  oldMSG?.data?.data?.message ??
-  oldMSG?.data?.data ??
-  oldMSG?.data ??
-  [];
-
-const normalizedMessages = Array.isArray(messages)
-  ? messages
-  : Array.isArray(messages?.message
-)
-    ? messages?.message
-
-    : [];
-
-    console.log("Messages API response:", oldMSG?.Messages || oldMSG?.message);
-console.log("Normalized messages:", normalizedMessages);
-
-  const currentStatus = String(ticket?.status ?? "open").toLowerCase();
+  const currentStatus = String(
+    ticket?.status ?? "open"
+  ).toLowerCase();
 
   const isClosed = ["resolved", "closed"].includes(currentStatus);
 
+  // Send reply.
   const handleReply = async (event) => {
     event.preventDefault();
 
     const trimmedMessage = message.trim();
 
-    if (!trimmedMessage || !ticketId || sending || isClosed) return;
+    if (!trimmedMessage || !ticketId || sending || isClosed) {
+      return;
+    }
 
     try {
       setFeedback("");
@@ -106,10 +81,8 @@ console.log("Normalized messages:", normalizedMessages);
       setMessage("");
       setFeedback("Reply sent successfully.");
 
-      await Promise.all([
-  refetch(),
-  refetchMessages(),
-]);
+      // Refresh ticket details.
+      await refetch();
     } catch (err) {
       setFeedback(
         err?.data?.message ||
@@ -119,8 +92,16 @@ console.log("Normalized messages:", normalizedMessages);
     }
   };
 
+  // Update ticket status.
   const handleStatusUpdate = async () => {
-    if (!ticketId || !newStatus || newStatus === currentStatus) return;
+    if (
+      !ticketId ||
+      !newStatus ||
+      newStatus === currentStatus ||
+      updatingStatus
+    ) {
+      return;
+    }
 
     try {
       setFeedback("");
@@ -131,6 +112,8 @@ console.log("Normalized messages:", normalizedMessages);
       }).unwrap();
 
       setFeedback("Ticket status updated successfully.");
+      setNewStatus("");
+
       await refetch();
     } catch (err) {
       setFeedback(
@@ -141,6 +124,7 @@ console.log("Normalized messages:", normalizedMessages);
     }
   };
 
+  // Loading state.
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center gap-3 text-slate-600">
@@ -150,19 +134,25 @@ console.log("Normalized messages:", normalizedMessages);
     );
   }
 
+  // Error state.
   if (isError) {
     return (
       <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-red-200 bg-red-50 p-6">
         <div className="flex items-center gap-3 text-red-700">
           <AlertCircle size={24} />
-          <h2 className="font-semibold">Unable to load ticket</h2>
+
+          <h2 className="font-semibold">
+            Unable to load ticket
+          </h2>
         </div>
 
         <p className="mt-2 text-sm text-red-600">
-          {error?.data?.message || "Please check your connection or permissions."}
+          {error?.data?.message ||
+            "Please check your connection or permissions."}
         </p>
 
         <button
+          type="button"
           onClick={() => refetch()}
           className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
         >
@@ -173,6 +163,7 @@ console.log("Normalized messages:", normalizedMessages);
     );
   }
 
+  // Ticket not found.
   if (!ticket) {
     return (
       <div className="p-8 text-center text-slate-600">
@@ -184,7 +175,9 @@ console.log("Normalized messages:", normalizedMessages);
   return (
     <main className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
+        {/* Back button */}
         <button
+          type="button"
           onClick={() => navigate(-1)}
           className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-blue-600"
         >
@@ -192,17 +185,20 @@ console.log("Normalized messages:", normalizedMessages);
           Back to tickets
         </button>
 
+        {/* Page header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
               Ticket details
             </h1>
+
             <p className="mt-1 text-sm text-slate-500">
               Review ticket information and communicate with the customer.
             </p>
           </div>
 
           <button
+            type="button"
             onClick={() => refetch()}
             disabled={isFetching}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
@@ -215,6 +211,7 @@ console.log("Normalized messages:", normalizedMessages);
           </button>
         </div>
 
+        {/* Feedback */}
         {feedback && (
           <div
             role="status"
@@ -224,6 +221,7 @@ console.log("Normalized messages:", normalizedMessages);
           </div>
         )}
 
+        {/* Ticket information + chat */}
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.5fr)]">
           <AgentTicketInfo
             ticket={ticket}
@@ -235,7 +233,7 @@ console.log("Normalized messages:", normalizedMessages);
           />
 
           <AgentTicketChat
-            messages={normalizedMessages}
+            ticketId={ticketId}
             ticket={ticket}
             message={message}
             setMessage={setMessage}

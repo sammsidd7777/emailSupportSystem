@@ -1,11 +1,16 @@
 
+import { useEffect, useRef } from "react";
 import {
   MessageSquare,
   Send,
   UserRound,
   Headphones,
   AlertCircle,
+  LoaderCircle,
+  RefreshCw,
 } from "lucide-react";
+
+import { useGetMessagesByTicketIdQuery } from "../../services/RTK/messageApi";
 
 function formatDate(value) {
   if (!value) return "";
@@ -22,17 +27,17 @@ function formatDate(value) {
   });
 }
 
-function getSender(message) {
+function getSender(item) {
   const sender =
-    message?.senderId ||
-    message?.sender ||
-    message?.userId ||
-    message?.author ||
+    item?.senderId ||
+    item?.sender ||
+    item?.userId ||
+    item?.author ||
     {};
 
   const role = String(
-    message?.senderRole ||
-      message?.role ||
+    item?.senderRole ||
+      item?.role ||
       sender?.role ||
       ""
   ).toLowerCase();
@@ -47,27 +52,27 @@ function getSender(message) {
   return {
     isAgent,
     name:
-      message?.senderName ||
+      item?.senderName ||
       sender?.name ||
       sender?.fullName ||
       (isAgent ? "Support team" : "Customer"),
   };
 }
 
-function getMessageText(message) {
-  if (typeof message === "string") return message;
+function getMessageText(item) {
+  if (typeof item === "string") return item;
 
   return (
-    message?.message ??
-    message?.text ??
-    message?.content ??
-    message?.body ??
+    item?.message ??
+    item?.text ??
+    item?.content ??
+    item?.body ??
     ""
   );
 }
 
 export default function AgentTicketChat({
-  messages = [],
+  ticketId,
   ticket,
   message,
   setMessage,
@@ -75,11 +80,45 @@ export default function AgentTicketChat({
   sending,
   isClosed,
 }) {
+  const chatEndRef = useRef(null);
+
+  // Messages API is called directly inside this component.
+  const {
+    data: oldMSG,
+    isLoading,
+    isFetching,
+    isError,
+    refetch: refetchMessages,
+  } = useGetMessagesByTicketIdQuery(ticketId, {
+    skip: !ticketId,
+  });
+
+  // API response: data.message.Messages
+  const messages = oldMSG?.data?.message?.Messages ?? [];
+
   const conversation = Array.isArray(messages) ? messages : [];
+
+  // Keep the latest message visible.
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [conversation.length]);
+
+  // Submit reply, then refresh messages.
+  const handleSubmit = async (event) => {
+    try {
+      await onReply(event);
+      await refetchMessages();
+    } catch (error) {
+      console.error("Unable to refresh chat:", error);
+    }
+  };
 
   return (
     <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {/* Chat header */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-5 sm:p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -90,6 +129,7 @@ export default function AgentTicketChat({
             <h2 className="font-bold text-slate-900">
               Conversation
             </h2>
+
             <p className="mt-1 text-xs text-slate-500">
               {conversation.length}{" "}
               {conversation.length === 1 ? "message" : "messages"}
@@ -97,25 +137,53 @@ export default function AgentTicketChat({
           </div>
         </div>
 
-        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-          {isClosed ? "Closed" : "Active"}
-        </span>
+        <button
+          type="button"
+          onClick={() => refetchMessages()}
+          disabled={isFetching}
+          title="Refresh messages"
+          className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <RefreshCw
+            size={17}
+            className={isFetching ? "animate-spin" : ""}
+          />
+        </button>
       </div>
 
-      {/* Scrollable message history */}
+      {/* Scrollable chat history */}
       <div className="h-[420px] overflow-y-auto overscroll-contain bg-slate-50/70 p-4 sm:h-[520px] sm:p-6">
-        {conversation.length === 0 ? (
+        {isLoading ? (
+          <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-500">
+            <LoaderCircle size={20} className="animate-spin" />
+            Loading messages...
+          </div>
+        ) : isError ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm">
-              <MessageSquare size={25} />
-            </div>
+            <AlertCircle size={28} className="text-red-500" />
+
+            <p className="mt-3 text-sm font-medium text-slate-700">
+              Unable to load messages.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => refetchMessages()}
+              className="mt-3 text-sm font-semibold text-blue-600 hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        ) : conversation.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center text-center">
+            <MessageSquare size={28} className="text-slate-400" />
 
             <h3 className="mt-4 font-semibold text-slate-700">
               No messages yet
             </h3>
 
-            <p className="mt-1 max-w-xs text-sm text-slate-500">
-              Messages will appear here when the customer or support team replies.
+            <p className="mt-1 text-sm text-slate-500">
+              Start the conversation by sending a reply.
             </p>
           </div>
         ) : (
@@ -123,16 +191,12 @@ export default function AgentTicketChat({
             {conversation.map((item, index) => {
               const sender = getSender(item);
               const text = getMessageText(item);
-              const key =
-                item?._id ||
-                item?.id ||
-                `${item?.createdAt || "message"}-${index}`;
 
               return (
                 <div
-                  key={key}
+                  key={item?._id || item?.id || index}
                   className={`flex gap-3 ${
-                    sender.isAgent ? "flex-row-reverse" : "flex-row"
+                    sender.isAgent ? "flex-row-reverse" : ""
                   }`}
                 >
                   <div
@@ -181,6 +245,8 @@ export default function AgentTicketChat({
                 </div>
               );
             })}
+
+            <div ref={chatEndRef} />
           </div>
         )}
       </div>
@@ -193,7 +259,7 @@ export default function AgentTicketChat({
             <p>This ticket is closed or resolved. Replies are disabled.</p>
           </div>
         ) : (
-          <form onSubmit={onReply}>
+          <form onSubmit={handleSubmit}>
             <label
               htmlFor="agent-reply"
               className="mb-2 block text-sm font-semibold text-slate-700"
