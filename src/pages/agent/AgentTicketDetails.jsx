@@ -66,20 +66,22 @@ export default function AgentTicketDetails() {
     null;
 
 const messages =
-  oldMSG?.Messages ??
-  oldMSG?.data?.Messages ??
-  oldMSG?.data?.data?.Messages ??
+  oldMSG?.message ??
+  oldMSG?.data?.message ??
+  oldMSG?.data?.data?.message ??
   oldMSG?.data?.data ??
   oldMSG?.data ??
   [];
 
 const normalizedMessages = Array.isArray(messages)
   ? messages
-  : Array.isArray(messages?.messages)
-    ? messages.messages
+  : Array.isArray(messages?.message
+)
+    ? messages.message
+
     : [];
 
-    console.log("Messages API response:", oldMSG);
+    console.log("Messages API response:", oldMSG.message);
 console.log("Normalized messages:", normalizedMessages);
 
   const currentStatus = String(ticket?.status ?? "open").toLowerCase();
