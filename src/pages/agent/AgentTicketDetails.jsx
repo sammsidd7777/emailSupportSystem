@@ -65,6 +65,9 @@ export default function AgentTicketDetails() {
     oldMSG?.data?.data?.messages ??
     [];
 
+
+    console.log(messages,"api responce check")
+
   const normalizedMessages = Array.isArray(messages) ? messages : [];
 
   const currentStatus = String(ticket?.status ?? "open").toLowerCase();
