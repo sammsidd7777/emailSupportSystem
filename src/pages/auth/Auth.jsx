@@ -1,15 +1,7 @@
+
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  useRegistationMutation,
-  useLoginMutation,
-  useLoginWithOtpMutation,
-  useSendOtpMutation,
-  useVerifyOtpMutation,
-  useForgotPasswordMutation,
-  useResetPasswordMutation,
-} from "../../services/RTK/authApi";
-
+import { useDispatch } from "react-redux";
 import {
   Headphones,
   Mail,
@@ -24,8 +16,18 @@ import {
   ChevronLeft,
   KeyRound,
 } from "lucide-react";
-import { useDispatch } from "react-redux";
-import { loginSuccess } from "../../services/authSlice";
+
+import {
+  useRegistationMutation,
+  useLoginMutation,
+  useLoginWithOtpMutation,
+  useSendOtpMutation,
+  useVerifyOtpMutation,
+  useForgotPasswordMutation,
+  useResetPasswordMutation,
+} from "../services/RTK/authApi";
+
+import { loginSuccess } from "../services/RTK/authSlice";
 
 const initialValues = {
   Name: "",
@@ -38,15 +40,15 @@ const initialValues = {
 
 export default function Auth() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const initialMode = searchParams.get("mode");
-  const [section, setSection] = useState(
-    ["register", "forgot", "reset"].includes(initialMode)
-      ? initialMode
-      : "login",
-  );
+  const requestedMode = searchParams.get("mode");
+  const initialMode = ["register", "forgot", "reset"].includes(requestedMode)
+    ? requestedMode
+    : "login";
 
+  const [section, setSection] = useState(initialMode);
   const [loginMode, setLoginMode] = useState("password");
   const [values, setValues] = useState(initialValues);
   const [showPassword, setShowPassword] = useState(false);
@@ -55,35 +57,36 @@ export default function Auth() {
 
   const [registerUser, registerState] = useRegistationMutation();
   const [loginUser, loginState] = useLoginMutation();
-  const [loginOtp, loginOtpState] = useLoginWithOtpMutation();
+  const [loginWithOtp, otpLoginState] = useLoginWithOtpMutation();
   const [sendOtp, sendOtpState] = useSendOtpMutation();
   const [verifyOtp, verifyOtpState] = useVerifyOtpMutation();
   const [forgotPassword, forgotState] = useForgotPasswordMutation();
   const [resetPassword, resetState] = useResetPasswordMutation();
 
-  const dispatch = useDispatch();
-
   const busy =
     registerState.isLoading ||
     loginState.isLoading ||
-    loginOtpState.isLoading ||
+    otpLoginState.isLoading ||
     sendOtpState.isLoading ||
     verifyOtpState.isLoading ||
     forgotState.isLoading ||
     resetState.isLoading;
 
-  const update = (e) => {
+  const update = (event) => {
+    const { name, value } = event.target;
+
     setValues((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
+
     setError("");
     setMessage("");
   };
 
-  const switchSection = (next) => {
-    setSection(next);
-    setSearchParams(next === "login" ? {} : { mode: next });
+  const switchSection = (nextSection) => {
+    setSection(nextSection);
+    setSearchParams({ mode: nextSection });
     setError("");
     setMessage("");
   };
@@ -92,11 +95,12 @@ export default function Auth() {
     setError(
       err?.data?.message ||
         err?.data?.error ||
-        "Something went wrong. Please try again.",
+        err?.error ||
+        "Something went wrong. Please try again."
     );
   };
 
-  const goToDashboard = (res) => {
+    const goToDashboard = (res) => {
     // Adjust these keys to match your actual login response.
     const user = res?.user || res?.data?.user;
     const role = String(user?.role || user?.Role || "").toLowerCase();
@@ -110,7 +114,21 @@ export default function Auth() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const completeLogin = (response) => {
+    const user = response?.user || response?.data?.user;
+    const token = response?.accessToken || response?.token;
+
+    if (!user) {
+      throw new Error("Login succeeded, but user information was not returned.");
+    }
+
+  dispatch(loginSuccess(user));
+
+    goToDashboard(user);
+    return
+  };
+
+const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setMessage("");
@@ -240,14 +258,15 @@ export default function Auth() {
   };
 
   const inputClass =
-    "w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100";
+    "w-full rounded-xl border border-white/80 bg-white/20 py-3 pl-11 pr-11 text-sm text-neutral-800 placeholder:text-neutral-500 outline-none backdrop-blur-xl transition duration-300 focus:border-white focus:bg-white/50 focus:ring-4 focus:ring-white/30";
 
   const field = (name, placeholder, Icon, type = "text") => (
     <div className="relative">
       <Icon
         size={17}
-        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500"
       />
+
       <input
         name={name}
         type={type}
@@ -273,8 +292,9 @@ export default function Auth() {
     <div className="relative">
       <LockKeyhole
         size={17}
-        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500"
       />
+
       <input
         name={name}
         type={showPassword ? "text" : "password"}
@@ -283,14 +303,15 @@ export default function Auth() {
         placeholder={placeholder}
         required
         minLength={8}
-        autoComplete="new-password"
+        autoComplete="current-password"
         className={inputClass}
       />
+
       <button
         type="button"
         aria-label={showPassword ? "Hide password" : "Show password"}
         onClick={() => setShowPassword((prev) => !prev)}
-        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600"
+        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-500 transition hover:text-black"
       >
         {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
       </button>
@@ -298,143 +319,99 @@ export default function Auth() {
   );
 
   const titles = {
-    register: ["Create account", "Join SupportDesk in a few steps."],
+    register: ["Create account", "Join BitMax support in a few steps."],
     login: ["Welcome back", "Sign in to continue to your dashboard."],
     forgot: ["Forgot password?", "Enter your registered email address."],
     reset: ["Reset password", "Verify your OTP and create a new password."],
   };
+
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#070605] px-3 py-8 text-white sm:px-6">
-      {/* Component-scoped animation */}
-      <style>{`
-        @keyframes bm-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-14px) } }
-        @keyframes bm-drift { 0%,100% { transform: translate(0,0) scale(1) } 50% { transform: translate(40px,-30px) scale(1.08) } }
-        .bm-float { animation: bm-float 7s ease-in-out infinite; }
-        .bm-drift { animation: bm-drift 16s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) {
-          .bm-float, .bm-drift { animation: none; }
-        }
-      `}</style>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-3 py-8 sm:px-6">
+      {/* Pure white background with subtle neutral glass lighting */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white blur-[100px]" />
+        <div className="absolute -right-24 top-1/4 h-96 w-96 rounded-full bg-neutral-100/70 blur-[110px]" />
+        <div className="absolute -bottom-32 left-1/3 h-96 w-96 rounded-full bg-white blur-[100px]" />
 
-      {/* ---------- Company-style background ---------- */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        {/* Colour glows */}
-        <div className="bm-drift absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-amber-600/25 blur-[130px]" />
-        <div
-          className="bm-drift absolute -bottom-40 -right-24 h-[30rem] w-[30rem] rounded-full bg-yellow-500/15 blur-[140px]"
-          style={{ animationDelay: "-6s" }}
-        />
-        <div
-          className="bm-drift absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 rounded-full bg-orange-700/15 blur-[130px]"
-          style={{ animationDelay: "-11s" }}
-        />
-
-        {/* Fine grid */}
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, #f5d78a 1px, transparent 1px), linear-gradient(to bottom, #f5d78a 1px, transparent 1px)",
-            backgroundSize: "56px 56px",
-            maskImage:
-              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-            WebkitMaskImage:
-              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-          }}
-        />
-
-        {/* Large watermark logos */}
-        <div className="absolute -right-24 top-10 hidden opacity-[0.05] lg:block">
-          <BitMaxMark size={420} />
-        </div>
-        <div className="absolute -left-20 bottom-0 hidden opacity-[0.04] lg:block">
-          <BitMaxMark size={320} />
-        </div>
-
-        {/* Vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(7,6,5,0.88)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_10%,rgba(245,245,245,0.35)_100%)]" />
       </div>
 
-      {/* ---------- Main dark glass container ---------- */}
-      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-amber-200/15 bg-white/[0.04] shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(253,234,168,0.12)] backdrop-blur-2xl md:min-h-[680px] md:grid-cols-[0.95fr_1.05fr]">
+      {/* Main translucent glass container */}
+      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/80 bg-white/20 shadow-[0_25px_80px_rgba(0,0,0,0.08)] backdrop-blur-3xl md:min-h-[650px] md:grid-cols-[0.9fr_1.1fr]">
         {/* Branding panel */}
-        <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-amber-200/10 bg-gradient-to-br from-amber-200/[0.06] to-transparent p-8 md:flex lg:p-10">
-          <div className="pointer-events-none absolute -right-24 -top-20 h-72 w-72 rounded-full border border-white/10" />
-          <div className="pointer-events-none absolute -right-10 -top-6 h-48 w-48 rounded-full border border-white/10" />
-          <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-amber-500/15 blur-3xl" />
+        <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-white/60 bg-white/10 p-8 backdrop-blur-2xl md:flex lg:p-10">
+          <div className="pointer-events-none absolute -right-20 -top-16 h-64 w-64 rounded-full border border-white/80" />
+          <div className="pointer-events-none absolute -right-8 -top-4 h-44 w-44 rounded-full border border-white/70" />
+          <div className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-white/60 blur-3xl" />
 
-          <div className="relative">
-            <BitMaxLogo />
+          <div className="relative flex items-center gap-3">
+            <div className="rounded-2xl border border-white/90 bg-white/40 p-3 text-neutral-700 shadow-lg shadow-black/[0.03] backdrop-blur-xl">
+              <Headphones size={25} />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold tracking-wide text-neutral-800">
+                BITMAX
+              </h2>
+              <p className="text-[11px] tracking-wide text-neutral-500">
+                CUSTOMER SUPPORT PORTAL
+              </p>
+            </div>
           </div>
 
-          <div className="relative py-8">
-            <h1 className="max-w-sm text-4xl font-semibold leading-[1.15] tracking-tight text-white">
+          <div className="relative py-10">
+            <div className="mb-5 inline-flex rounded-2xl border border-white/90 bg-white/40 p-3 text-neutral-700 shadow-sm backdrop-blur-xl">
+              <ShieldCheck size={28} />
+            </div>
+
+            <h1 className="max-w-sm text-4xl font-semibold leading-tight tracking-tight text-neutral-800">
               Every issue deserves a solution.
             </h1>
 
-            <p className="mt-4 max-w-sm text-sm leading-7 text-white/60">
+            <p className="mt-4 max-w-sm text-sm leading-7 text-neutral-600">
               Raise support tickets, follow updates, and manage every
               conversation from one simple workspace.
             </p>
 
-            {/* Product preview card */}
-            <div className="bm-float mt-8 max-w-sm rounded-2xl border border-white/10 bg-black/30 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur-xl">
-              <div className="flex items-start gap-3">
-                <div className="rounded-xl border border-white/10 bg-white/10 p-2 text-amber-200">
-                  <MessageSquareText size={16} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-medium text-white">
-                      Payment not reflecting
-                    </p>
-                    <span className="flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                      <CheckCircle2 size={10} />
-                      Resolved
-                    </span>
-                  </div>
-
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
-                    <Clock3 size={12} />
-                    Updated moments ago by your support agent
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-7 space-y-3.5 text-sm text-white/65">
+            <div className="mt-8 space-y-4 text-sm text-neutral-600">
               <div className="flex items-center gap-3">
-                <ShieldCheck size={17} className="text-amber-300" />
+                <ShieldCheck size={17} />
                 Secure account access
               </div>
 
               <div className="flex items-center gap-3">
-                <Mail size={17} className="text-yellow-200" />
+                <Mail size={17} />
                 Email notifications
               </div>
 
               <div className="flex items-center gap-3">
-                <KeyRound size={17} className="text-amber-400" />
+                <KeyRound size={17} />
                 Password and OTP options
               </div>
             </div>
           </div>
 
-          <p className="relative text-xs tracking-wide text-white/40">
+          <p className="relative text-xs tracking-wide text-neutral-500">
             Secure · Simple · Organized
           </p>
         </aside>
 
         {/* Authentication panel */}
-        <section className="relative flex flex-col justify-center bg-black/25 p-5 sm:p-8 lg:p-12">
-          {/* Mobile logo */}
-          <div className="mb-7 md:hidden">
-            <BitMaxLogo size={38} />
+        <section className="relative flex flex-col justify-center bg-white/20 p-5 backdrop-blur-3xl sm:p-8 lg:p-12">
+          <div className="mb-6 flex items-center justify-between md:hidden">
+            <div className="flex items-center gap-2">
+              <div className="rounded-xl border border-white/90 bg-white/50 p-2.5 text-neutral-700 shadow-sm">
+                <Headphones size={21} />
+              </div>
+
+              <span className="font-bold tracking-wide text-neutral-800">
+                BITMAX
+              </span>
+            </div>
           </div>
 
           <div className="mb-6 flex items-center justify-between">
-            <div className="text-xs font-medium tracking-wide text-white/45">
+            <div className="text-xs font-medium uppercase tracking-[0.15em] text-neutral-500">
               Secure authentication
             </div>
 
@@ -442,7 +419,7 @@ export default function Auth() {
               <button
                 type="button"
                 onClick={() => switchSection("login")}
-                className="ml-auto flex items-center gap-1 text-xs font-semibold text-white/55 transition hover:text-white"
+                className="ml-auto flex items-center gap-1 text-xs font-semibold text-neutral-500 transition hover:text-black"
               >
                 <ChevronLeft size={15} />
                 Back to login
@@ -451,16 +428,16 @@ export default function Auth() {
           </div>
 
           {(section === "login" || section === "register") && (
-            <div className="mb-6 grid grid-cols-2 rounded-xl border border-white/10 bg-white/[0.04] p-1.5">
+            <div className="mb-6 grid grid-cols-2 rounded-xl border border-white/80 bg-white/20 p-1.5 backdrop-blur-xl">
               {["login", "register"].map((item) => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => switchSection(item)}
-                  className={`rounded-lg py-2.5 text-sm font-semibold transition-all duration-300 ${
+                  className={`rounded-lg py-2.5 text-sm font-semibold capitalize transition-all duration-300 ${
                     section === item
-                      ? "border border-amber-300/40 bg-amber-300/10 text-amber-100 shadow-[inset_0_1px_0_rgba(253,234,168,0.2)]"
-                      : "text-white/50 hover:bg-white/5 hover:text-white"
+                      ? "border border-white/90 bg-white/60 text-neutral-800 shadow-[0_3px_12px_rgba(0,0,0,0.04)]"
+                      : "text-neutral-500 hover:bg-white/30 hover:text-neutral-800"
                   }`}
                 >
                   {item === "login" ? "Login" : "Register"}
@@ -469,11 +446,11 @@ export default function Auth() {
             </div>
           )}
 
-          <h2 className="text-3xl font-semibold tracking-tight text-white">
+          <h2 className="text-3xl font-semibold tracking-tight text-neutral-800">
             {titles[section][0]}
           </h2>
 
-          <p className="mb-6 mt-2 text-sm leading-6 text-white/55">
+          <p className="mb-6 mt-2 text-sm leading-6 text-neutral-500">
             {titles[section][1]}
           </p>
 
@@ -486,7 +463,11 @@ export default function Auth() {
                   setError("");
                   setMessage("");
                 }}
-                className={pillClass(loginMode === "password")}
+                className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                  loginMode === "password"
+                    ? "border-white/90 bg-white/60 text-neutral-800 shadow-sm"
+                    : "border-white/60 bg-white/15 text-neutral-500 hover:bg-white/50"
+                }`}
               >
                 Password login
               </button>
@@ -498,7 +479,11 @@ export default function Auth() {
                   setError("");
                   setMessage("");
                 }}
-                className={pillClass(loginMode === "otp")}
+                className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                  loginMode === "otp"
+                    ? "border-white/90 bg-white/60 text-neutral-800 shadow-sm"
+                    : "border-white/60 bg-white/15 text-neutral-500 hover:bg-white/50"
+                }`}
               >
                 Login with OTP
               </button>
@@ -525,7 +510,7 @@ export default function Auth() {
                   <button
                     type="button"
                     onClick={() => switchSection("forgot")}
-                    className="text-xs font-medium text-white/55 transition hover:text-white hover:underline"
+                    className="text-xs font-medium text-neutral-500 transition hover:text-black hover:underline"
                   >
                     Forgot password?
                   </button>
@@ -541,7 +526,7 @@ export default function Auth() {
                   type="button"
                   onClick={handleSendOtp}
                   disabled={busy}
-                  className="w-full rounded-xl border border-amber-300/30 bg-amber-300/[0.06] py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/15 disabled:opacity-50"
+                  className="w-full rounded-xl border border-white/80 bg-white/25 py-3 text-sm font-semibold text-neutral-700 shadow-sm backdrop-blur-xl transition hover:bg-white/60 disabled:opacity-50"
                 >
                   {sendOtpState.isLoading ? "Sending OTP..." : "Send login OTP"}
                 </button>
@@ -554,7 +539,7 @@ export default function Auth() {
               <>
                 {field("Email", "Registered email address", Mail, "email")}
 
-                <p className="text-xs leading-5 text-white/50">
+                <p className="text-xs leading-5 text-neutral-500">
                   We'll send reset instructions if an account matches this
                   email.
                 </p>
@@ -573,7 +558,7 @@ export default function Auth() {
             {error && (
               <p
                 role="alert"
-                className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs text-red-200"
+                className="rounded-xl border border-red-200/80 bg-white/70 p-3 text-xs text-red-600 backdrop-blur-xl"
               >
                 {error}
               </p>
@@ -582,7 +567,7 @@ export default function Auth() {
             {message && (
               <p
                 role="status"
-                className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-xs text-emerald-200"
+                className="rounded-xl border border-white/80 bg-white/35 p-3 text-xs text-neutral-700 backdrop-blur-xl"
               >
                 {message}
               </p>
@@ -591,7 +576,7 @@ export default function Auth() {
             <button
               type="submit"
               disabled={busy}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200/50 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_10px_30px_rgba(217,160,40,0.35),inset_0_1px_0_rgba(255,255,255,0.5)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(217,160,40,0.5),inset_0_1px_0_rgba(255,255,255,0.6)] hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/40 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+              className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/90 bg-white/45 py-3.5 text-sm font-semibold text-neutral-800 shadow-[0_8px_25px_rgba(0,0,0,0.06)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-[0_12px_30px_rgba(0,0,0,0.09)] focus:outline-none focus:ring-4 focus:ring-white/60 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? (
                 <>
@@ -616,12 +601,12 @@ export default function Auth() {
           </form>
 
           {section === "login" && (
-            <p className="mt-6 text-center text-xs text-white/50">
+            <p className="mt-6 text-center text-xs text-neutral-500">
               New to BitMax?{" "}
               <button
                 type="button"
                 onClick={() => switchSection("register")}
-                className="font-semibold text-amber-200 underline decoration-amber-300/40 underline-offset-4 hover:decoration-amber-300"
+                className="font-semibold text-neutral-800 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-700"
               >
                 Create an account
               </button>
@@ -629,19 +614,19 @@ export default function Auth() {
           )}
 
           {section === "register" && (
-            <p className="mt-6 text-center text-xs text-white/50">
+            <p className="mt-6 text-center text-xs text-neutral-500">
               Already have an account?{" "}
               <button
                 type="button"
                 onClick={() => switchSection("login")}
-                className="font-semibold text-amber-200 underline decoration-amber-300/40 underline-offset-4 hover:decoration-amber-300"
+                className="font-semibold text-neutral-800 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-700"
               >
                 Sign in
               </button>
             </p>
           )}
 
-          <p className="mt-5 text-center text-[10px] leading-5 text-white/35">
+          <p className="mt-5 text-center text-[10px] leading-5 text-neutral-400">
             By continuing, you agree to use BitMax responsibly.
           </p>
         </section>
