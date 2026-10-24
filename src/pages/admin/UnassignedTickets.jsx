@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -204,10 +203,10 @@ export default function UnassignedTickets() {
   });
 
   const priorityStyle = {
-    low: "bg-gray-100 text-gray-700",
-    medium: "bg-blue-100 text-blue-700",
-    high: "bg-orange-100 text-orange-700",
-    urgent: "bg-red-100 text-red-700",
+    low: "bg-neutral-100 text-neutral-600",
+    medium: "bg-sky-50 text-sky-700",
+    high: "bg-orange-50 text-orange-700",
+    urgent: "bg-red-50 text-red-700",
   };
 
   const urgentCount = tickets.filter(
@@ -223,16 +222,16 @@ export default function UnassignedTickets() {
     tickets.length;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-full">
+      <div className="space-y-5">
         {/* Header */}
-        <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-4xl font-semibold tracking-tight text-[#0f3d28] sm:text-5xl">
               Unassigned Tickets
             </h1>
 
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-neutral-500 sm:text-base">
               Assign pending tickets to the right support agent.
             </p>
           </div>
@@ -241,7 +240,7 @@ export default function UnassignedTickets() {
             type="button"
             onClick={handleRefresh}
             disabled={isFetching || fetchingAgents}
-            className="flex items-center justify-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/20 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:opacity-50"
           >
             <RefreshCw
               size={16}
@@ -256,48 +255,50 @@ export default function UnassignedTickets() {
         </div>
 
         {/* Summary cards */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border bg-white p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b7048] via-[#115236] to-[#0a2e1e] p-5 text-white sm:p-6">
+            <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full border border-white/10" />
+
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-base font-medium">
                 Unassigned Tickets
               </p>
-              <Ticket size={22} className="text-blue-600" />
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#0f3d28]">
+                <Ticket size={20} />
+              </span>
             </div>
 
-            <p className="mt-3 text-3xl font-bold">
+            <p className="mt-4 text-5xl font-semibold tracking-tight">
               {unassignedCount}
             </p>
           </div>
 
-          <div className="rounded-xl border bg-white p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
+          <div className="rounded-3xl bg-white p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-base font-medium text-[#0f3d28]">
                 Support Agents
               </p>
-              <UserRoundPlus
-                size={22}
-                className="text-green-600"
-              />
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
+                <UserRoundPlus size={20} />
+              </span>
             </div>
 
-            <p className="mt-3 text-3xl font-bold">
+            <p className="mt-4 text-5xl font-semibold tracking-tight text-[#0f3d28]">
               {agents.length}
             </p>
           </div>
 
-          <div className="rounded-xl border bg-white p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
+          <div className="rounded-3xl bg-white p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-base font-medium text-[#0f3d28]">
                 Urgent Tickets
               </p>
-              <AlertCircle
-                size={22}
-                className="text-red-600"
-              />
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <AlertCircle size={20} />
+              </span>
             </div>
 
-            <p className="mt-3 text-3xl font-bold">
+            <p className="mt-4 text-5xl font-semibold tracking-tight text-[#0f3d28]">
               {urgentCount}
             </p>
           </div>
@@ -307,7 +308,7 @@ export default function UnassignedTickets() {
         {(error || isError || agentError) && (
           <div
             role="alert"
-            className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+            className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
           >
             {error ||
               queryError?.data?.message ||
@@ -322,33 +323,33 @@ export default function UnassignedTickets() {
         {success && (
           <div
             role="status"
-            className="mb-4 flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-700"
+            className="flex items-center gap-2 rounded-3xl border border-[#1f7a4d]/30 bg-[#1f7a4d]/10 p-4 text-sm font-medium text-[#0f3d28]"
           >
-            <CheckCircle2 size={18} />
+            <CheckCircle2 size={18} className="text-[#1f7a4d]" />
             {success}
           </div>
         )}
 
         {/* Search and priority filter */}
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-3 rounded-3xl bg-white p-4 sm:flex-row sm:p-5">
           <div className="relative flex-1">
             <Search
               size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
             />
 
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search ticket number, subject, or email..."
-              className="w-full rounded-lg border bg-white py-3 pl-10 pr-4 outline-none focus:border-blue-500"
+              className="w-full rounded-full border border-neutral-200 bg-[#f7f7f5] py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-neutral-400 hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15"
             />
           </div>
 
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
-            className="rounded-lg border bg-white px-4 py-3 outline-none focus:border-blue-500"
+            className="rounded-full border border-neutral-200 bg-[#f7f7f5] px-5 py-3 text-sm font-medium text-neutral-700 outline-none transition hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15"
           >
             <option value="all">All Priorities</option>
             <option value="low">Low</option>
@@ -359,9 +360,13 @@ export default function UnassignedTickets() {
         </div>
 
         {/* Tickets table */}
-        <div className="overflow-hidden rounded-xl border bg-white">
+        <div className="overflow-hidden rounded-3xl bg-white">
           {loadingTickets ? (
-            <div className="p-12 text-center text-gray-500">
+            <div className="flex items-center justify-center gap-3 p-12 text-neutral-500">
+              <RefreshCw
+                size={18}
+                className="animate-spin text-[#1f7a4d]"
+              />
               Loading unassigned tickets...
             </div>
           ) : isError && tickets.length === 0 ? (
@@ -371,48 +376,53 @@ export default function UnassignedTickets() {
                 size={40}
               />
 
-              <h3 className="font-semibold text-gray-800">
+              <h3 className="font-semibold text-neutral-800">
                 Unable to load tickets
               </h3>
 
               <button
                 type="button"
                 onClick={() => refetchTickets()}
-                className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                className="mt-4 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
               >
                 Try Again
               </button>
             </div>
           ) : filteredTickets.length === 0 ? (
             <div className="p-12 text-center">
-              <Ticket
-                className="mx-auto mb-3 text-gray-300"
-                size={40}
-              />
+              <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
+                <Ticket size={28} />
+              </div>
 
-              <h3 className="font-semibold text-gray-800">
+              <h3 className="font-semibold text-neutral-800">
                 No unassigned tickets found
               </h3>
 
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-neutral-500">
                 All matching tickets may already be assigned.
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto p-3 sm:p-4">
               <table className="w-full min-w-[900px] text-left">
-                <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <thead className="bg-[#f7f7f5] text-xs text-neutral-500">
                   <tr>
-                    <th className="px-5 py-4">Ticket</th>
-                    <th className="px-5 py-4">Requester</th>
-                    <th className="px-5 py-4">Priority</th>
-                    <th className="px-5 py-4">Created</th>
-                    <th className="px-5 py-4">Assign Agent</th>
-                    <th className="px-5 py-4">Action</th>
+                    <th className="rounded-l-2xl px-5 py-3.5 font-medium">
+                      Ticket
+                    </th>
+                    <th className="px-5 py-3.5 font-medium">Requester</th>
+                    <th className="px-5 py-3.5 font-medium">Priority</th>
+                    <th className="px-5 py-3.5 font-medium">Created</th>
+                    <th className="px-5 py-3.5 font-medium">
+                      Assign Agent
+                    </th>
+                    <th className="rounded-r-2xl px-5 py-3.5 font-medium">
+                      Action
+                    </th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-neutral-100">
                   {filteredTickets.map((ticket) => {
                     const ticketId = ticket._id;
 
@@ -445,7 +455,7 @@ export default function UnassignedTickets() {
                     return (
                       <tr
                         key={ticketId}
-                        className="hover:bg-gray-50"
+                        className="transition hover:bg-[#f7f7f5]"
                       >
                         {/* Ticket details */}
                         <td className="px-5 py-4">
@@ -456,29 +466,27 @@ export default function UnassignedTickets() {
                                 `/admin/tickets/${ticketId}`
                               )
                             }
-                            className="text-left"
+                            className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50"
                           >
-                            <p className="font-semibold text-blue-600 hover:underline">
+                            <span className="rounded-full bg-[#1f7a4d]/10 px-2.5 py-1 text-xs font-bold text-[#1f7a4d] hover:bg-[#1f7a4d]/20">
                               {ticketNumber}
-                            </p>
+                            </span>
 
-                            <p className="mt-1 max-w-xs truncate text-sm text-gray-600">
-                              {subject}
-                            </p>
+                           
                           </button>
                         </td>
 
                         {/* Requester */}
-                        <td className="px-5 py-4 text-sm text-gray-600">
+                        <td className="px-5 py-4 text-sm text-neutral-600">
                           {requesterEmail}
                         </td>
 
                         {/* Priority */}
                         <td className="px-5 py-4">
                           <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
                               priorityStyle[ticketPriority] ||
-                              "bg-gray-100 text-gray-700"
+                              "bg-neutral-100 text-neutral-600"
                             }`}
                           >
                             {ticketPriority}
@@ -486,7 +494,7 @@ export default function UnassignedTickets() {
                         </td>
 
                         {/* Created date */}
-                        <td className="px-5 py-4 text-sm text-gray-500">
+                        <td className="px-5 py-4 text-sm text-neutral-500">
                           {createdAt
                             ? new Date(
                                 createdAt
@@ -511,7 +519,7 @@ export default function UnassignedTickets() {
                               agents.length === 0 ||
                               assigningId === ticketId
                             }
-                            className="w-52 rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-100"
+                            className="w-56 rounded-full border border-neutral-200 bg-[#f7f7f5] px-4 py-2.5 text-sm text-neutral-700 outline-none transition hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <option value="">
                               {loadingAgents
@@ -563,8 +571,14 @@ export default function UnassignedTickets() {
                             onClick={() =>
                               assignTickets(ticketId)
                             }
-                            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/15 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:cursor-not-allowed disabled:bg-none disabled:bg-neutral-200 disabled:text-neutral-400 disabled:shadow-none"
                           >
+                            {assigningId === ticketId && (
+                              <RefreshCw
+                                size={14}
+                                className="animate-spin"
+                              />
+                            )}
                             {assigningId === ticketId
                               ? "Assigning..."
                               : "Assign"}
@@ -580,8 +594,14 @@ export default function UnassignedTickets() {
         </div>
 
         {/* Footer */}
-        <p className="mt-4 text-sm text-gray-500">
-          Showing {filteredTickets.length} of {tickets.length} tickets
+        <p className="px-1 text-sm text-neutral-500">
+          Showing{" "}
+          <strong className="text-[#0f3d28]">
+            {filteredTickets.length}
+          </strong>{" "}
+          of{" "}
+          <strong className="text-[#0f3d28]">{tickets.length}</strong>{" "}
+          tickets
         </p>
       </div>
     </div>

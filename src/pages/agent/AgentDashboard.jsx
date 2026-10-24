@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -70,12 +69,31 @@ const statusStyles = {
   closed: "bg-slate-100 text-slate-600 ring-slate-200",
 };
 
-const priorityStyles = {
-  low: "bg-slate-100 text-slate-600",
-  medium: "bg-sky-50 text-sky-700",
-  high: "bg-orange-50 text-orange-700",
-  urgent: "bg-red-50 text-red-700",
+const statusRails = {
+  open: "bg-blue-400",
+  "in progress": "bg-amber-400",
+  resolved: "bg-emerald-400",
+  closed: "bg-slate-300",
 };
+
+const priorityStyles = {
+  low: "bg-slate-100 text-slate-600 ring-slate-200",
+  medium: "bg-sky-50 text-sky-700 ring-sky-200",
+  high: "bg-orange-50 text-orange-700 ring-orange-200",
+  urgent: "bg-red-50 text-red-700 ring-red-200",
+};
+
+/* display-only: tabs shown above the list */
+const statusTabs = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "in progress", label: "In progress" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+];
+
+const goldButton =
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200/50 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 text-sm font-bold text-neutral-950 shadow-[0_10px_30px_rgba(217,160,40,0.3),inset_0_1px_0_rgba(255,255,255,0.5)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-60";
 
 function Badge({ value, styles }) {
   const label = value.replace(/\b\w/g, (letter) =>
@@ -94,38 +112,26 @@ function Badge({ value, styles }) {
   );
 }
 
-function StatCard({
+function OverviewStat({
   title,
   value,
   icon: Icon,
-  iconStyle,
   description,
   loading,
+  className = "",
 }) {
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-950/5 sm:p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-
-          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-            {loading ? "—" : value}
-          </p>
-        </div>
-
-        <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 ${iconStyle}`}
-        >
-          <Icon size={22} />
-        </div>
+    <article className={`p-5 sm:p-6 ${className}`}>
+      <div className="flex items-center gap-2 text-sm text-slate-500">
+        <Icon size={16} className="text-amber-600" strokeWidth={2} />
+        {title}
       </div>
 
-      <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4">
-        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-        <p className="text-xs leading-5 text-slate-500">
-          {description}
-        </p>
-      </div>
+      <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
+        {loading ? "—" : value}
+      </p>
+
+      <p className="mt-1.5 text-xs text-slate-400">{description}</p>
     </article>
   );
 }
@@ -136,7 +142,7 @@ function FilterSelect({ value, onChange, label, children }) {
       value={value}
       onChange={(event) => onChange(event.target.value)}
       aria-label={label}
-      className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+      className="min-w-0 rounded-xl border border-amber-200/70 bg-white px-3 py-3 text-sm font-medium text-slate-700 outline-none transition hover:border-amber-300 focus:border-amber-400 focus:ring-4 focus:ring-amber-300/20"
     >
       {children}
     </select>
@@ -167,17 +173,17 @@ export default function AgentDashboard() {
     return [];
   }, [data]);
 
- const stats = useMemo(
-  () => ({
-    total: data?.stats?.total ?? 0,
-    open: data?.stats?.open ?? 0,
-    progress: data?.stats?.progress ?? 0,
-    resolved: data?.stats?.resolved ?? 0,
-    closed: data?.stats?.closed ?? 0,
-    urgent: data?.stats?.urgent ?? 0,
-  }),
-  [data?.stats]
-);
+  const stats = useMemo(
+    () => ({
+      total: data?.stats?.total ?? 0,
+      open: data?.stats?.open ?? 0,
+      progress: data?.stats?.progress ?? 0,
+      resolved: data?.stats?.resolved ?? 0,
+      closed: data?.stats?.closed ?? 0,
+      urgent: data?.stats?.urgent ?? 0,
+    }),
+    [data?.stats]
+  );
 
   const filteredTickets = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -218,113 +224,149 @@ export default function AgentDashboard() {
     }
   };
 
+  /* ---------- display-only helpers ---------- */
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const activeWorkload = stats.open + stats.progress;
+
+  const barTotal =
+    stats.open + stats.progress + stats.resolved + stats.closed;
+
+  const barParts = [
+    { label: "Open", value: stats.open, color: "bg-blue-400" },
+    { label: "In progress", value: stats.progress, color: "bg-amber-400" },
+    { label: "Resolved", value: stats.resolved, color: "bg-emerald-400" },
+    { label: "Closed", value: stats.closed, color: "bg-slate-400" },
+  ];
+
+  const tabCount = (value) =>
+    value === "all"
+      ? tickets.length
+      : tickets.filter((ticket) => getStatus(ticket) === value).length;
+
   return (
-    <div className="min-h-full space-y-7 bg-slate-50/70 p-4 sm:p-6 lg:p-8">
-      {/* Page heading */}
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <span>Workspace</span>
-            <ChevronRight size={13} />
-            <span className="text-blue-600">Dashboard</span>
-          </div>
+    <div className="min-h-full space-y-7 p-4 sm:p-6 lg:p-8">
+      {/* ---------- Hero ---------- */}
+      <section className="relative isolate overflow-hidden rounded-[28px] border border-amber-200/15 bg-[#0a0907] text-white shadow-[0_25px_60px_rgba(20,15,5,0.35),inset_0_1px_0_rgba(253,234,168,0.12)]">
+        <div className="pointer-events-none absolute -left-24 -top-28 -z-10 h-80 w-80 rounded-full bg-amber-600/25 blur-[110px]" />
+        <div className="pointer-events-none absolute -bottom-32 right-10 -z-10 h-72 w-72 rounded-full bg-yellow-500/15 blur-[110px]" />
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #f5d78a 1px, transparent 1px), linear-gradient(to bottom, #f5d78a 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+            maskImage:
+              "radial-gradient(ellipse at 75% 50%, black 15%, transparent 70%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse at 75% 50%, black 15%, transparent 70%)",
+          }}
+        />
 
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Agent Dashboard
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Track your workload and keep customer requests moving.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700 disabled:opacity-60 sm:self-center"
-        >
-          <RefreshCw
-            size={16}
-            className={isFetching ? "animate-spin" : ""}
-          />
-          Refresh data
-        </button>
-      </section>
-
-      {/* Hero banner */}
-      <section className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-blue-700 p-6 text-white shadow-xl shadow-blue-950/10 sm:p-8 lg:p-9">
-        <div className="pointer-events-none absolute -right-20 -top-24 -z-10 h-72 w-72 rounded-full border-[40px] border-white/[0.06]" />
-        <div className="pointer-events-none absolute -bottom-24 right-1/3 -z-10 h-56 w-56 rounded-full bg-cyan-400/10 blur-2xl" />
-
-        <div className="relative flex flex-col justify-between gap-7 lg:flex-row lg:items-center">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-100 backdrop-blur">
-              <Headset size={15} />
-              SUPPORT WORKSPACE
-            </div>
-
-            <h2 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-              Welcome back, Agent!
-            </h2>
-
-            <p className="mt-3 max-w-xl text-sm leading-6 text-blue-100/90 sm:text-base">
-              Every ticket is an opportunity to help. Review your
-              assignments, prioritize urgent issues, and keep customers
-              informed.
+        <div className="relative grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.3fr_1fr] lg:items-center lg:p-10">
+          <div>
+            <p className="inline-flex items-center gap-2 text-sm text-amber-100/70">
+              <Headset size={15} className="text-amber-300" />
+              Agent workspace ·{" "}
+              {new Date().toLocaleDateString("en-IN", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5">
-                <Ticket size={17} className="text-cyan-200" />
-                <div>
-                  <p className="text-lg font-bold leading-5">
-                    {isLoading ? "—" : stats.total}
-                  </p>
-                  <p className="mt-1 text-[11px] text-blue-100">
-                    Assigned tickets
-                  </p>
-                </div>
-              </div>
+            <h1 className="mt-4 text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
+              {greeting},
+              <br />
+              <span className="text-amber-100">Agent.</span>
+            </h1>
 
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5">
-                <Clock3 size={17} className="text-amber-200" />
-                <div>
-                  <p className="text-lg font-bold leading-5">
-                    {isLoading ? "—" : stats.open + stats.progress}
-                  </p>
-                  <p className="mt-1 text-[11px] text-blue-100">
-                    Active workload
-                  </p>
-                </div>
-              </div>
+            <p className="mt-4 max-w-md text-sm leading-7 text-white/55 sm:text-base">
+              {isLoading
+                ? "Loading your queue..."
+                : activeWorkload > 0
+                  ? `You have ${activeWorkload} active ${activeWorkload === 1 ? "ticket" : "tickets"} waiting on you${stats.urgent > 0 ? `, ${stats.urgent} marked urgent` : ""}.`
+                  : "Your queue is clear. New assignments will show up here."}
+            </p>
 
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5">
-                <AlertCircle size={17} className="text-red-200" />
-                <div>
-                  <p className="text-lg font-bold leading-5">
-                    {isLoading ? "—" : stats.urgent}
-                  </p>
-                  <p className="mt-1 text-[11px] text-blue-100">
-                    Urgent tickets
-                  </p>
-                </div>
-              </div>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/agent/my-tickets")}
+                className={`${goldButton} px-5 py-3.5`}
+              >
+                Go to my tickets
+                <ArrowUpRight size={17} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-5 py-3.5 text-sm font-semibold text-white/80 backdrop-blur transition hover:bg-white/10 hover:text-white disabled:opacity-60"
+              >
+                <RefreshCw
+                  size={16}
+                  className={isFetching ? "animate-spin" : ""}
+                />
+                Refresh
+              </button>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("/agent/my-tickets")}
-            className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-800 shadow-lg transition hover:-translate-y-0.5 hover:bg-blue-50 lg:self-center"
-          >
-            View my tickets
-            <ArrowUpRight size={17} />
-          </button>
+          {/* Workload breakdown */}
+          <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 shadow-[inset_0_1px_0_rgba(253,234,168,0.1)] backdrop-blur-xl">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-sm text-white/55">Your workload</p>
+                <p className="mt-1 text-4xl font-semibold tracking-tight">
+                  {isLoading ? "—" : stats.total}
+                  <span className="ml-2 text-sm font-normal text-white/45">
+                    assigned
+                  </span>
+                </p>
+              </div>
+
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-300">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                Live
+              </span>
+            </div>
+
+            {/* Segmented bar */}
+            <div className="mt-5 flex h-3 w-full overflow-hidden rounded-full bg-white/10">
+              {!isLoading &&
+                barTotal > 0 &&
+                barParts.map((part) =>
+                  part.value > 0 ? (
+                    <div
+                      key={part.label}
+                      className={part.color}
+                      style={{ width: `${(part.value / barTotal) * 100}%` }}
+                      title={`${part.label}: ${part.value}`}
+                    />
+                  ) : null
+                )}
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              {barParts.map((part) => (
+                <div key={part.label} className="flex items-center gap-2.5">
+                  <span className={`h-2.5 w-2.5 rounded-full ${part.color}`} />
+                  <span className="text-white/60">{part.label}</span>
+                  <span className="ml-auto font-semibold">
+                    {isLoading ? "—" : part.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Error message */}
+      {/* ---------- API error ---------- */}
       {isError && (
         <section
           role="alert"
@@ -336,7 +378,7 @@ export default function AgentDashboard() {
 
           <div className="flex-1">
             <h3 className="font-semibold text-red-800">
-              Unable to load tickets
+              We couldn't load your tickets
             </h3>
             <p className="mt-1 text-sm text-red-700">
               {error?.data?.message ||
@@ -348,83 +390,69 @@ export default function AgentDashboard() {
               onClick={() => refetch()}
               className="mt-2 text-sm font-bold text-red-800 underline underline-offset-4"
             >
-              Try again
+              Retry
             </button>
           </div>
         </section>
       )}
 
-      {/* Statistics */}
-      <section>
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-lg font-bold tracking-tight text-slate-900">
-              Ticket overview
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              A quick snapshot of your current workload.
-            </p>
-          </div>
-
-          <span className="inline-flex items-center gap-2 self-start rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-            Live workspace
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-          <StatCard
-            title="Assigned tickets"
+      {/* ---------- Overview band ---------- */}
+      <section className="overflow-hidden rounded-2xl border border-amber-200/50 bg-white shadow-[0_8px_30px_rgba(120,85,10,0.06)]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-amber-100">
+          <OverviewStat
+            title="Assigned to you"
             value={stats.total}
             icon={Ticket}
-            iconStyle="bg-blue-50 text-blue-600"
-            description="Total tickets assigned to you"
+            description="All tickets in your queue"
             loading={isLoading}
+            className="border-b border-r border-amber-100 lg:border-b-0 lg:border-r-0"
           />
 
-          <StatCard
-            title="Open tickets"
+          <OverviewStat
+            title="Waiting on you"
             value={stats.open}
             icon={Clock3}
-            iconStyle="bg-amber-50 text-amber-600"
-            description="Waiting for your action"
+            description="Open and untouched"
             loading={isLoading}
+            className="border-b border-amber-100 lg:border-b-0"
           />
 
-          <StatCard
-            title="In progress"
+          <OverviewStat
+            title="Being handled"
             value={stats.progress}
             icon={TrendingUp}
-            iconStyle="bg-violet-50 text-violet-600"
-            description="Currently being handled"
+            description="Currently in progress"
             loading={isLoading}
+            className="border-r border-amber-100 lg:border-r-0"
           />
 
-          <StatCard
-            title="Resolved tickets"
+          <OverviewStat
+            title="Wrapped up"
             value={stats.resolved}
             icon={CheckCircle2}
-            iconStyle="bg-emerald-50 text-emerald-600"
-            description="Successfully resolved"
+            description="Resolved so far"
             loading={isLoading}
           />
         </div>
       </section>
 
-      {/* Urgent alert */}
+      {/* ---------- Urgent alert ---------- */}
       {!isLoading && !isError && stats.urgent > 0 && (
-        <section className="flex flex-col gap-4 rounded-2xl border border-red-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
+        <section className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-red-200 bg-white p-5 pl-7 shadow-sm sm:flex-row sm:items-center">
+          <span className="absolute inset-y-0 left-0 w-1.5 bg-red-500" />
+
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
             <AlertCircle size={23} />
           </div>
 
           <div className="flex-1">
-            <h3 className="font-bold text-slate-900">
-              Urgent attention required
+            <h3 className="font-semibold text-slate-900">
+              Needs your attention
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              You have {stats.urgent} urgent{" "}
-              {stats.urgent === 1 ? "ticket" : "tickets"} to review.
+              {stats.urgent} urgent{" "}
+              {stats.urgent === 1 ? "ticket is" : "tickets are"} waiting for
+              a reply.
             </p>
           </div>
 
@@ -433,84 +461,110 @@ export default function AgentDashboard() {
             onClick={() => setPriorityFilter("urgent")}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
           >
-            Review urgent
+            Show urgent
             <ArrowUpRight size={16} />
           </button>
         </section>
       )}
 
-      {/* Tickets panel */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 p-5 sm:p-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-bold tracking-tight text-slate-900">
-                  My assigned tickets
-                </h2>
-                <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
-                  {filteredTickets.length}
-                </span>
-              </div>
-              <p className="mt-1.5 text-sm text-slate-500">
-                Find, filter, and open your assigned customer requests.
-              </p>
+      {/* ---------- Tickets ---------- */}
+      <section>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Your queue
+              </h2>
+              <span className="rounded-lg border border-amber-200/70 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">
+                {filteredTickets.length}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Search, filter and open the tickets assigned to you.
+            </p>
+          </div>
+        </div>
+
+        {/* Toolbar */}
+        <div className="rounded-2xl border border-amber-200/50 bg-white p-4 shadow-[0_6px_24px_rgba(120,85,10,0.05)] sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative min-w-0 flex-1">
+              <Search
+                size={17}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by ticket, subject or customer"
+                aria-label="Search tickets"
+                className="w-full rounded-xl border border-amber-200/70 bg-white py-3 pl-10 pr-3 text-sm outline-none transition placeholder:text-slate-400 hover:border-amber-300 focus:border-amber-400 focus:ring-4 focus:ring-amber-300/20"
+              />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:flex">
-              <div className="relative xl:w-64">
-                <Search
-                  size={17}
-                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search tickets..."
-                  aria-label="Search tickets"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
-                />
-              </div>
+            <FilterSelect
+              value={priorityFilter}
+              onChange={setPriorityFilter}
+              label="Filter by priority"
+            >
+              <option value="all">All priorities</option>
+              <option value="low">Low priority</option>
+              <option value="medium">Medium priority</option>
+              <option value="high">High priority</option>
+              <option value="urgent">Urgent priority</option>
+            </FilterSelect>
 
-              <FilterSelect
-                value={statusFilter}
-                onChange={setStatusFilter}
-                label="Filter by status"
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-amber-50"
               >
-                <option value="all">All statuses</option>
-                <option value="open">Open</option>
-                <option value="in progress">In progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </FilterSelect>
+                <RotateCcw size={15} />
+                Clear
+              </button>
+            )}
+          </div>
 
-              <FilterSelect
-                value={priorityFilter}
-                onChange={setPriorityFilter}
-                label="Filter by priority"
-              >
-                <option value="all">All priorities</option>
-                <option value="low">Low priority</option>
-                <option value="medium">Medium priority</option>
-                <option value="high">High priority</option>
-                <option value="urgent">Urgent priority</option>
-              </FilterSelect>
+          {/* Status tabs */}
+          <div
+            role="tablist"
+            aria-label="Filter by status"
+            className="mt-4 flex gap-2 overflow-x-auto pb-1"
+          >
+            {statusTabs.map((tab) => {
+              const active = statusFilter === tab.value;
 
-              {hasFilters && (
+              return (
                 <button
+                  key={tab.value}
                   type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setStatusFilter(tab.value)}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    active
+                      ? "border-amber-300 bg-gradient-to-r from-amber-100 to-amber-50 text-amber-900"
+                      : "border-transparent text-slate-500 hover:bg-amber-50 hover:text-slate-800"
+                  }`}
                 >
-                  <RotateCcw size={15} />
-                  Clear
+                  {tab.label}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] ${
+                      active
+                        ? "bg-amber-300/50 text-amber-900"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {tabCount(tab.value)}
+                  </span>
                 </button>
-              )}
-            </div>
+              );
+            })}
           </div>
 
           {hasFilters && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-amber-100 pt-3">
               <Filter size={14} className="text-slate-400" />
               <span className="text-xs text-slate-500">Active filters</span>
 
@@ -529,7 +583,7 @@ export default function AgentDashboard() {
                 <button
                   type="button"
                   onClick={() => setStatusFilter("all")}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold capitalize text-blue-700"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold capitalize text-amber-800"
                 >
                   {statusFilter}
                   <X size={12} />
@@ -550,144 +604,125 @@ export default function AgentDashboard() {
           )}
         </div>
 
-        {/* Loading state */}
-        {isLoading ? (
-          <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-24 animate-pulse rounded-xl bg-slate-100"
-              />
-            ))}
-          </div>
-        ) : isError ? (
-          <div className="px-5 py-14 text-center">
-            <AlertCircle size={30} className="mx-auto text-red-400" />
-            <h3 className="mt-3 font-bold text-slate-800">
-              Tickets could not be displayed
-            </h3>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-            >
-              Retry loading
-            </button>
-          </div>
-        ) : filteredTickets.length === 0 ? (
-          <div className="px-5 py-16 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-              <Inbox size={28} />
+        {/* List */}
+        <div className="mt-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-24 animate-pulse rounded-2xl bg-amber-100/50"
+                />
+              ))}
             </div>
-            <h3 className="mt-4 font-bold text-slate-800">
-              No tickets found
-            </h3>
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-              {tickets.length === 0
-                ? "No tickets have been assigned to you yet. New assignments will appear here."
-                : "No tickets match your search or selected filters."}
-            </p>
-            {hasFilters && (
+          ) : isError ? (
+            <div className="rounded-2xl border border-red-200 bg-white px-5 py-14 text-center">
+              <AlertCircle size={30} className="mx-auto text-red-400" />
+              <h3 className="mt-3 font-semibold text-slate-800">
+                We couldn't display your tickets
+              </h3>
               <button
                 type="button"
-                onClick={clearFilters}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => refetch()}
+                className={`${goldButton} mt-4 px-5 py-2.5`}
               >
-                <RotateCcw size={15} />
-                Clear filters
+                Retry
               </button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[850px] text-left">
-              <thead className="bg-slate-50">
-                <tr className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                  <th className="px-5 py-4 sm:px-6">Ticket</th>
-                  <th className="px-5 py-4">Customer</th>
-                  <th className="px-5 py-4">Priority</th>
-                  <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4">Created date</th>
-                  <th className="px-5 py-4">Action</th>
-                </tr>
-              </thead>
+            </div>
+          ) : filteredTickets.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-amber-300/60 bg-white/60 px-5 py-16 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50 to-amber-100 text-amber-700">
+                <Inbox size={28} />
+              </div>
+              <h3 className="mt-4 font-semibold text-slate-800">
+                Nothing to show
+              </h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
+                {tickets.length === 0
+                  ? "No tickets are assigned to you yet. New assignments will appear here."
+                  : "No tickets match your search or filters."}
+              </p>
+              {hasFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-amber-50"
+                >
+                  <RotateCcw size={15} />
+                  Clear filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {filteredTickets.map((ticket) => {
+                const ticketId = ticket._id;
+                const status = getStatus(ticket);
+                const priority = getPriority(ticket);
+                const customer = getCustomer(ticket);
 
-              <tbody className="divide-y divide-slate-100">
-                {filteredTickets.map((ticket) => {
-                  const ticketId = ticket._id;
-                  const status = getStatus(ticket);
-                  const priority = getPriority(ticket);
-                  const customer = getCustomer(ticket);
+                return (
+                  <li
+                    key={ticketId || getTicketNumber(ticket)}
+                    className="group relative grid gap-4 overflow-hidden rounded-2xl border border-amber-200/50 bg-white py-4 pl-6 pr-4 shadow-[0_6px_24px_rgba(120,85,10,0.04)] transition hover:border-amber-300 hover:shadow-[0_14px_36px_rgba(120,85,10,0.1)] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] lg:items-center lg:pr-5"
+                  >
+                    <span
+                      className={`absolute inset-y-0 left-0 w-1.5 ${
+                        statusRails[status] || "bg-slate-300"
+                      }`}
+                    />
 
-                  return (
-                    <tr
-                      key={ticketId || getTicketNumber(ticket)}
-                      className="group transition-colors hover:bg-blue-50/40"
-                    >
-                      <td className="px-5 py-4 sm:px-6">
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-100">
-                            <Ticket size={18} />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-bold text-slate-800">
-                              {getTicketNumber(ticket)}
-                            </p>
-                            <p className="mt-1 max-w-[250px] truncate text-sm text-slate-500">
-                              {ticket.subject ||
-                                ticket.Subject ||
-                                "Untitled ticket"}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
+                    {/* Ticket */}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md border border-amber-200/70 bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-800">
+                          {getTicketNumber(ticket)}
+                        </span>
 
-                      <td className="px-5 py-4">
-                        <div className="flex max-w-[220px] items-center gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-xs font-bold uppercase text-blue-700">
-                            {customer.charAt(0)}
-                          </div>
-                          <span className="truncate text-sm text-slate-600">
-                            {customer}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <Badge value={priority} styles={priorityStyles} />
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <Badge value={status} styles={statusStyles} />
-                      </td>
-
-                      <td className="whitespace-nowrap px-5 py-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                          <CalendarDays size={14} className="text-slate-400" />
+                        <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                          <CalendarDays size={13} />
                           {formatDate(ticket.createdAt || ticket.CreatedAt)}
-                        </div>
-                      </td>
+                        </span>
+                      </div>
 
-                      <td className="px-5 py-4">
-                        <button
-                          type="button"
-                          onClick={() => openTicket(ticket)}
-                          disabled={!ticketId}
-                          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Open ticket
-                          <ChevronRight size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                      <p className="mt-2 truncate text-base font-semibold text-slate-800">
+                        {ticket.subject || ticket.Subject || "Untitled ticket"}
+                      </p>
+                    </div>
 
-        <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    {/* Customer */}
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-200/70 bg-gradient-to-br from-amber-50 to-amber-100 text-xs font-bold uppercase text-amber-800">
+                        {customer.charAt(0)}
+                      </div>
+                      <span className="truncate text-sm text-slate-600">
+                        {customer}
+                      </span>
+                    </div>
+
+                    {/* Badges + action */}
+                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                      <Badge value={priority} styles={priorityStyles} />
+                      <Badge value={status} styles={statusStyles} />
+
+                      <button
+                        type="button"
+                        onClick={() => openTicket(ticket)}
+                        disabled={!ticketId}
+                        className="ml-1 inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-amber-400 hover:bg-gradient-to-r hover:from-amber-200 hover:to-amber-400 hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Open
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 px-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <span>
             Showing{" "}
             <strong className="text-slate-800">
@@ -699,9 +734,9 @@ export default function AgentDashboard() {
           </span>
 
           {isFetching && !isLoading && (
-            <span className="inline-flex items-center gap-2 text-blue-600">
+            <span className="inline-flex items-center gap-2 text-amber-700">
               <RefreshCw size={13} className="animate-spin" />
-              Updating tickets...
+              Updating...
             </span>
           )}
         </div>

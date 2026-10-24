@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -15,6 +14,15 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useGetMyTicketsQuery } from "../../services/RTK/ticketApi";
+
+const statusTabs = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "pending", label: "Pending" },
+  { value: "in progress", label: "In progress" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+];
 
 export default function MyTickets() {
   const [search, setSearch] = useState("");
@@ -87,27 +95,53 @@ export default function MyTickets() {
     ["resolved", "closed"].includes(getStatus(ticket))
   ).length;
 
+  /* display-only: count shown on each status tab */
+  const countFor = (value) =>
+    value === "all"
+      ? tickets.length
+      : tickets.filter((ticket) => getStatus(ticket) === value).length;
+
   const statusStyle = (value = "") => {
     const styles = {
-      open: "bg-blue-50 text-blue-700",
-      pending: "bg-amber-50 text-amber-700",
-      "in progress": "bg-violet-50 text-violet-700",
-      resolved: "bg-emerald-50 text-emerald-700",
-      closed: "bg-gray-100 text-gray-600",
+      open: "bg-blue-50 text-blue-700 ring-blue-200",
+      pending: "bg-amber-50 text-amber-700 ring-amber-200",
+      "in progress": "bg-violet-50 text-violet-700 ring-violet-200",
+      resolved: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+      closed: "bg-slate-100 text-slate-600 ring-slate-200",
     };
 
-    return styles[normalizeStatus(value)] || "bg-gray-100 text-gray-600";
+    return (
+      styles[normalizeStatus(value)] ||
+      "bg-slate-100 text-slate-600 ring-slate-200"
+    );
+  };
+
+  const statusRail = (value = "") => {
+    const rails = {
+      open: "bg-blue-400",
+      pending: "bg-amber-400",
+      "in progress": "bg-violet-400",
+      resolved: "bg-emerald-400",
+      closed: "bg-slate-300",
+    };
+
+    return rails[normalizeStatus(value)] || "bg-slate-300";
   };
 
   const priorityStyle = (value = "") => {
     const styles = {
-      low: "text-gray-600",
-      medium: "text-blue-700",
-      high: "text-orange-700",
-      urgent: "text-red-700",
+      low: { text: "text-slate-600", dot: "bg-slate-400" },
+      medium: { text: "text-amber-700", dot: "bg-amber-400" },
+      high: { text: "text-orange-700", dot: "bg-orange-500" },
+      urgent: { text: "text-red-700", dot: "bg-red-500" },
     };
 
-    return styles[String(value).toLowerCase()] || "text-gray-600";
+    return (
+      styles[String(value).toLowerCase()] || {
+        text: "text-slate-600",
+        dot: "bg-slate-400",
+      }
+    );
   };
 
   const formatDate = (date) => {
@@ -129,365 +163,337 @@ export default function MyTickets() {
     error?.message ||
     "Unable to load tickets. Please try again.";
 
-  return (
-    <div className="min-h-screen w-full min-w-0 bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="w-full space-y-6">
-        {/* Page heading */}
-        <header className="flex flex-col justify-between gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-center">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-sm text-gray-500">
-              <span>Support</span>
-              <span>/</span>
-              <span className="text-gray-700">My Tickets</span>
-            </div>
+  const goldButton =
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200/50 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 text-sm font-bold text-neutral-950 shadow-[0_10px_30px_rgba(217,160,40,0.3),inset_0_1px_0_rgba(255,255,255,0.5)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-60";
 
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-              My Tickets
+  return (
+    <div className="w-full min-w-0 space-y-6 pb-8">
+      {/* ---------- Heading band ---------- */}
+      <header className="relative overflow-hidden rounded-[24px] border border-amber-200/15 bg-[#0a0907] p-6 text-white shadow-[0_22px_50px_rgba(20,15,5,0.3),inset_0_1px_0_rgba(253,234,168,0.12)] sm:p-8">
+        <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-amber-600/25 blur-[100px]" />
+        <div className="pointer-events-none absolute -bottom-24 right-16 h-60 w-60 rounded-full bg-yellow-500/15 blur-[100px]" />
+
+        <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              My tickets
             </h1>
 
-            <p className="mt-1.5 text-sm text-gray-500">
-              View and manage your support requests.
+            <p className="mt-2 max-w-md text-sm leading-6 text-white/55">
+              Every request you've raised, in one place. Search, filter and
+              jump back into any conversation.
             </p>
+
+            {!isLoading && !isError && (
+              <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-4">
+                <HeaderStat
+                  icon={<Ticket size={16} />}
+                  label="Total"
+                  value={tickets.length}
+                />
+                <HeaderStat
+                  icon={<Clock3 size={16} />}
+                  label="Active"
+                  value={openTickets}
+                />
+                <HeaderStat
+                  icon={<CheckCircle2 size={16} />}
+                  label="Resolved"
+                  value={resolvedTickets}
+                />
+              </div>
+            )}
           </div>
 
           <Link
             to="/user/create-ticket"
-            className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-md bg-blue-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-800 sm:self-auto"
+            className={`${goldButton} min-h-11 self-start px-5 py-3 lg:self-auto`}
           >
             <Plus size={17} />
-            Create ticket
+            New request
           </Link>
-        </header>
+        </div>
+      </header>
 
-        {/* Loading state */}
-        {isLoading && (
-          <div className="flex min-h-56 flex-col items-center justify-center rounded-lg border border-gray-200 bg-white">
-            <LoaderCircle size={28} className="animate-spin text-blue-700" />
-            <p className="mt-3 text-sm text-gray-500">
-              Loading your tickets...
-            </p>
+      {/* ---------- Loading ---------- */}
+      {isLoading && (
+        <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-amber-200/50 bg-white shadow-sm">
+          <LoaderCircle size={28} className="animate-spin text-amber-600" />
+          <p className="mt-3 text-sm text-slate-500">
+            Loading your tickets...
+          </p>
+        </div>
+      )}
+
+      {/* ---------- Error ---------- */}
+      {!isLoading && isError && (
+        <div className="rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+            <AlertCircle size={22} />
           </div>
-        )}
 
-        {/* Error state */}
-        {!isLoading && isError && (
-          <div className="rounded-lg border border-red-200 bg-white p-8 text-center">
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-red-50 text-red-600">
-              <AlertCircle size={22} />
-            </div>
+          <h2 className="mt-4 font-semibold text-slate-900">
+            We couldn't load your tickets
+          </h2>
 
-            <h2 className="mt-4 font-semibold text-gray-900">
-              Could not load tickets
-            </h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
+            {errorMessage}
+          </p>
 
-            <p className="mx-auto mt-2 max-w-lg text-sm text-gray-500">
-              {errorMessage}
-            </p>
+          <button
+            type="button"
+            onClick={refetch}
+            disabled={isFetching}
+            className={`${goldButton} mt-5 px-5 py-2.5`}
+          >
+            <RefreshCw
+              size={15}
+              className={isFetching ? "animate-spin" : ""}
+            />
+            Retry
+          </button>
+        </div>
+      )}
 
-            <button
-              type="button"
-              onClick={refetch}
-              disabled={isFetching}
-              className="mt-5 inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
-            >
-              <RefreshCw
-                size={15}
-                className={isFetching ? "animate-spin" : ""}
-              />
-              Try again
-            </button>
-          </div>
-        )}
+      {/* ---------- Content ---------- */}
+      {!isLoading && !isError && (
+        <>
+          {/* Search + filters */}
+          <section className="rounded-2xl border border-amber-200/50 bg-white p-4 shadow-[0_6px_24px_rgba(120,85,10,0.05)] sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  size={17}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                />
 
-        {/* Dashboard content */}
-        {!isLoading && !isError && (
-          <>
-            {/* Summary cards */}
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <SummaryCard
-                title="Total tickets"
-                value={tickets.length}
-                icon={<Ticket size={19} />}
-                color="blue"
-              />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search by ID, subject or category"
+                  aria-label="Search tickets"
+                  className="w-full rounded-xl border border-amber-200/70 bg-white py-3 pl-10 pr-10 text-sm outline-none transition placeholder:text-slate-400 hover:border-amber-300 focus:border-amber-400 focus:ring-4 focus:ring-amber-300/20"
+                />
 
-              <SummaryCard
-                title="Active tickets"
-                value={openTickets}
-                icon={<Clock3 size={19} />}
-                color="amber"
-              />
-
-              <SummaryCard
-                title="Resolved tickets"
-                value={resolvedTickets}
-                icon={<CheckCircle2 size={19} />}
-                color="green"
-              />
-            </section>
-
-            {/* Search and filters */}
-            <section className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
-              <div className="mb-4 flex items-center gap-2">
-                <SlidersHorizontal size={17} className="text-gray-500" />
-                <h2 className="text-sm font-semibold text-gray-900">
-                  Find a ticket
-                </h2>
-              </div>
-
-              <div className="flex flex-col gap-3 lg:flex-row">
-                <div className="relative min-w-0 flex-1">
-                  <Search
-                    size={17}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-                  />
-
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search by ticket ID, subject or category"
-                    aria-label="Search tickets"
-                    className="w-full rounded-md border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-sm outline-none transition placeholder:text-gray-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
-                  />
-
-                  {search && (
-                    <button
-                      type="button"
-                      onClick={() => setSearch("")}
-                      aria-label="Clear search"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-
-                <select
-                  value={status}
-                  onChange={(event) => setStatus(event.target.value)}
-                  aria-label="Filter by status"
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-600 lg:w-48"
-                >
-                  <option value="all">All statuses</option>
-                  <option value="open">Open</option>
-                  <option value="pending">Pending</option>
-                  <option value="in progress">In progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                </select>
-
-                <button
-                  type="button"
-                  onClick={refetch}
-                  disabled={isFetching}
-                  className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
-                >
-                  <RefreshCw
-                    size={15}
-                    className={isFetching ? "animate-spin" : ""}
-                  />
-                  Refresh
-                </button>
-              </div>
-            </section>
-
-            {/* Tickets table */}
-            <section className="w-full min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
-              <div className="flex flex-col justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900">
-                    All tickets
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {filteredTickets.length}{" "}
-                    {filteredTickets.length === 1 ? "result" : "results"}
-                  </p>
-                </div>
-
-                {isFetching && !isLoading && (
-                  <span className="inline-flex items-center gap-2 text-xs text-gray-500">
-                    <LoaderCircle
-                      size={15}
-                      className="animate-spin text-blue-700"
-                    />
-                    Updating
-                  </span>
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  >
+                    <X size={16} />
+                  </button>
                 )}
               </div>
 
-              {filteredTickets.length === 0 ? (
-                <div className="px-5 py-14 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-500">
-                    <Ticket size={23} />
-                  </div>
+              <button
+                type="button"
+                onClick={refetch}
+                disabled={isFetching}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-amber-50 disabled:opacity-60"
+              >
+                <RefreshCw
+                  size={15}
+                  className={isFetching ? "animate-spin" : ""}
+                />
+                Refresh
+              </button>
+            </div>
 
-                  <h3 className="mt-4 text-sm font-semibold text-gray-900">
-                    {tickets.length === 0
-                      ? "No tickets yet"
-                      : "No matching tickets"}
-                  </h3>
+            {/* Status tabs */}
+            <div
+              role="tablist"
+              aria-label="Filter by status"
+              className="mt-4 flex gap-2 overflow-x-auto pb-1"
+            >
+              <SlidersHorizontal
+                size={16}
+                className="mr-1 mt-2.5 shrink-0 text-slate-400"
+              />
 
-                  <p className="mx-auto mt-1.5 max-w-sm text-sm text-gray-500">
-                    {tickets.length === 0
-                      ? "Create a support ticket to get help with your issue."
-                      : "Try another search term or select a different status."}
-                  </p>
+              {statusTabs.map((tab) => {
+                const active = status === tab.value;
 
-                  {tickets.length === 0 && (
-                    <Link
-                      to="/user/create-ticket"
-                      className="mt-5 inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800"
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setStatus(tab.value)}
+                    className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      active
+                        ? "border-amber-300 bg-gradient-to-r from-amber-100 to-amber-50 text-amber-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+                        : "border-transparent text-slate-500 hover:bg-amber-50 hover:text-slate-800"
+                    }`}
+                  >
+                    {tab.label}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] ${
+                        active
+                          ? "bg-amber-300/50 text-amber-900"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
                     >
-                      <Plus size={16} />
-                      Create ticket
-                    </Link>
-                  )}
+                      {countFor(tab.value)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Ticket list */}
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+              <p className="text-sm text-slate-500">
+                <span className="font-semibold text-slate-800">
+                  {filteredTickets.length}
+                </span>{" "}
+                {filteredTickets.length === 1 ? "ticket" : "tickets"} found
+              </p>
+
+              {isFetching && !isLoading && (
+                <span className="inline-flex items-center gap-2 text-xs text-slate-500">
+                  <LoaderCircle
+                    size={15}
+                    className="animate-spin text-amber-600"
+                  />
+                  Updating
+                </span>
+              )}
+            </div>
+
+            {filteredTickets.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-amber-300/60 bg-white/60 px-5 py-14 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50 to-amber-100 text-amber-700">
+                  <Ticket size={26} />
                 </div>
-              ) : (
-                <div className="w-full overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left text-sm">
-                    <thead className="border-b border-gray-200 bg-gray-50">
-                      <tr>
-                        <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Ticket ID
-                        </th>
-                        <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Subject
-                        </th>
-                        <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Priority
-                        </th>
-                        <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Status
-                        </th>
-                        <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Created
-                        </th>
-                        <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
 
-                    <tbody className="divide-y divide-gray-100">
-                      {filteredTickets.map((ticket) => {
-                        const id = getId(ticket);
-                        const ticketNumber = getTicketNumber(ticket);
-                        const subject = getSubject(ticket);
-                        const priority = getPriority(ticket);
-                        const ticketStatus = getStatus(ticket);
+                <h3 className="mt-4 text-base font-semibold text-slate-900">
+                  {tickets.length === 0
+                    ? "No tickets yet"
+                    : "Nothing matches your search"}
+                </h3>
 
-                        return (
-                          <tr
-                            key={id ?? ticketNumber}
-                            className="transition hover:bg-gray-50"
+                <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-500">
+                  {tickets.length === 0
+                    ? "Raise your first request and it will show up here."
+                    : "Try a different keyword or switch to another status."}
+                </p>
+
+                {tickets.length === 0 && (
+                  <Link
+                    to="/user/create-ticket"
+                    className={`${goldButton} mt-5 px-5 py-3`}
+                  >
+                    <Plus size={16} />
+                    Raise a request
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {filteredTickets.map((ticket) => {
+                  const id = getId(ticket);
+                  const ticketNumber = getTicketNumber(ticket);
+                  const subject = getSubject(ticket);
+                  const priority = getPriority(ticket);
+                  const ticketStatus = getStatus(ticket);
+                  const pStyle = priorityStyle(priority);
+
+                  return (
+                    <li
+                      key={id ?? ticketNumber}
+                      className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-amber-200/50 bg-white py-4 pl-6 pr-4 shadow-[0_6px_24px_rgba(120,85,10,0.04)] transition hover:border-amber-300 hover:shadow-[0_14px_36px_rgba(120,85,10,0.1)] md:flex-row md:items-center md:pr-5"
+                    >
+                      <span
+                        className={`absolute inset-y-0 left-0 w-1.5 ${statusRail(ticketStatus)}`}
+                      />
+
+                      {/* Main info */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-md border border-amber-200/70 bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-800">
+                            {ticketNumber}
+                          </span>
+
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                            {getCategory(ticket)}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 truncate text-base font-semibold text-slate-800">
+                          {subject}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                          Opened{" "}
+                          {formatDate(ticket.createdAt ?? ticket.CreatedAt)}
+                        </p>
+                      </div>
+
+                      {/* Meta + action */}
+                      <div className="flex flex-wrap items-center gap-3 md:justify-end">
+                        <span
+                          className={`inline-flex items-center gap-2 text-sm font-medium capitalize ${pStyle.text}`}
+                        >
+                          <span className={`h-2 w-2 rounded-full ${pStyle.dot}`} />
+                          {priority}
+                        </span>
+
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${statusStyle(ticketStatus)}`}
+                        >
+                          {ticketStatus}
+                        </span>
+
+                        {id ? (
+                          <Link
+                            to={`/user/tickets/${id}`}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100/70 hover:text-amber-900"
                           >
-                            <td className="whitespace-nowrap px-5 py-4">
-                              <span className="font-medium text-blue-700">
-                                {ticketNumber}
-                              </span>
-                            </td>
+                            View
+                            <ArrowRight
+                              size={15}
+                              className="transition-transform group-hover:translate-x-0.5"
+                            />
+                          </Link>
+                        ) : (
+                          <span className="px-3 text-slate-400">—</span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
-                            <td className="max-w-xs px-5 py-4">
-                              <p className="truncate font-medium text-gray-900">
-                                {subject}
-                              </p>
-                              <p className="mt-1 truncate text-xs text-gray-500">
-                                {getCategory(ticket)}
-                              </p>
-                            </td>
-
-                            <td className="whitespace-nowrap px-5 py-4">
-                              <span
-                                className={`text-sm font-medium capitalize ${priorityStyle(priority)}`}
-                              >
-                                {priority}
-                              </span>
-                            </td>
-
-                            <td className="whitespace-nowrap px-5 py-4">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium capitalize ${statusStyle(ticketStatus)}`}
-                              >
-                                {ticketStatus}
-                              </span>
-                            </td>
-
-                            <td className="whitespace-nowrap px-5 py-4 text-gray-500">
-                              {formatDate(
-                                ticket.createdAt ?? ticket.CreatedAt
-                              )}
-                            </td>
-
-                            <td className="whitespace-nowrap px-5 py-4">
-                              {id ? (
-                                <Link
-                                  to={`/user/tickets/${id}`}
-                                  className="inline-flex items-center gap-1.5 font-medium text-blue-700 hover:text-blue-900"
-                                >
-                                  View
-                                  <ArrowRight size={15} />
-                                </Link>
-                              ) : (
-                                <span className="text-gray-400">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {filteredTickets.length > 0 && (
-                <div className="border-t border-gray-200 bg-gray-50 px-5 py-3 text-xs text-gray-500">
-                  Showing {filteredTickets.length} of {tickets.length} tickets
-                </div>
-              )}
-            </section>
-          </>
-        )}
-      </div>
+            {filteredTickets.length > 0 && (
+              <p className="mt-4 text-center text-xs text-slate-400">
+                Showing {filteredTickets.length} of {tickets.length} tickets
+              </p>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
 
-function SummaryCard({ title, value, icon, color }) {
-  const styles = {
-    blue: {
-      icon: "bg-blue-50 text-blue-700",
-      border: "border-l-blue-600",
-    },
-    amber: {
-      icon: "bg-amber-50 text-amber-700",
-      border: "border-l-amber-500",
-    },
-    green: {
-      icon: "bg-emerald-50 text-emerald-700",
-      border: "border-l-emerald-600",
-    },
-  };
-
-  const style = styles[color] ?? styles.blue;
-
+function HeaderStat({ icon, label, value }) {
   return (
-    <div
-      className={`min-w-0 rounded-lg border border-gray-200 border-l-4 ${style.border} bg-white p-5`}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${style.icon}`}
-        >
-          {icon}
-        </div>
+    <div className="flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-300/10 text-amber-300">
+        {icon}
       </div>
 
-      <p className="mt-4 text-3xl font-semibold tracking-tight text-gray-900">
-        {value}
-      </p>
+      <div className="leading-none">
+        <p className="text-2xl font-semibold tracking-tight">{value}</p>
+        <p className="mt-1 text-xs text-white/45">{label}</p>
+      </div>
     </div>
   );
 }

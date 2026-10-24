@@ -1,4 +1,3 @@
-
 import { useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -49,19 +48,33 @@ const getValue = (obj, ...keys) => {
 const normalize = (value = "") =>
   String(value).toLowerCase().replaceAll("_", " ").trim();
 
+/* display-only: progress steps shown in the header */
+const progressSteps = ["Received", "In progress", "Resolved"];
+
+const getStepIndex = (status) => {
+  if (["resolved", "closed"].includes(status)) return 2;
+  if (status === "in progress") return 1;
+  return 0;
+};
+
+const goldButton =
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200/50 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 text-sm font-bold text-neutral-950 shadow-[0_10px_30px_rgba(217,160,40,0.3),inset_0_1px_0_rgba(255,255,255,0.5)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-60";
+
 function LoadingScreen() {
   return (
-    <div className="flex min-h-[60vh] items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <LoaderCircle
-          size={34}
-          className="mx-auto animate-spin text-indigo-600"
-        />
-        <h2 className="mt-4 font-bold text-slate-900">
-          Loading ticket
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-amber-200/50 bg-white p-8 text-center shadow-[0_8px_30px_rgba(120,85,10,0.06)]">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
+          <LoaderCircle
+            size={30}
+            className="animate-spin text-amber-600"
+          />
+        </div>
+        <h2 className="mt-4 font-semibold text-slate-900">
+          Opening your ticket
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          Fetching your ticket information...
+          Getting the latest details...
         </p>
       </div>
     </div>
@@ -70,12 +83,14 @@ function LoadingScreen() {
 
 function ErrorScreen({ message, onRetry }) {
   return (
-    <div className="flex min-h-[60vh] items-center justify-center bg-slate-50 px-4 py-8">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <AlertCircle size={32} className="mx-auto text-red-500" />
+    <div className="flex min-h-[60vh] items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+          <AlertCircle size={28} />
+        </div>
 
-        <h2 className="mt-4 text-xl font-bold text-slate-900">
-          Unable to load ticket
+        <h2 className="mt-4 text-xl font-semibold text-slate-900">
+          We couldn't open this ticket
         </h2>
 
         <p className="mt-2 break-words text-sm leading-6 text-slate-500">
@@ -85,19 +100,19 @@ function ErrorScreen({ message, onRetry }) {
         <button
           type="button"
           onClick={onRetry}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          className={`${goldButton} mt-5 px-5 py-3`}
         >
           <RefreshCw size={16} />
-          Try Again
+          Retry
         </button>
 
         <div>
           <Link
             to="/user/my-tickets"
-            className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600"
+            className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-amber-700"
           >
             <ArrowLeft size={15} />
-            Back to My Tickets
+            Back to my tickets
           </Link>
         </div>
       </div>
@@ -181,22 +196,24 @@ export default function TicketDetail() {
   );
 
   const statusStyle = {
-    open: "bg-sky-400/15 text-sky-100 ring-sky-300/20",
-    pending: "bg-amber-400/15 text-amber-100 ring-amber-300/20",
-    "in progress": "bg-violet-400/15 text-violet-100 ring-violet-300/20",
-    resolved: "bg-emerald-400/15 text-emerald-100 ring-emerald-300/20",
+    open: "bg-sky-400/15 text-sky-100 ring-sky-300/25",
+    pending: "bg-amber-400/15 text-amber-100 ring-amber-300/25",
+    "in progress": "bg-violet-400/15 text-violet-100 ring-violet-300/25",
+    resolved: "bg-emerald-400/15 text-emerald-100 ring-emerald-300/25",
     closed: "bg-slate-400/15 text-slate-200 ring-white/15",
   };
 
+  const stepIndex = getStepIndex(status);
+
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+    <main className="w-full min-w-0">
+      <div className="mx-auto w-full max-w-[1600px] pb-4">
         {/* Breadcrumb navigation */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <nav className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
             <Link
               to="/user/dashboard"
-              className="text-slate-500 transition hover:text-indigo-600"
+              className="text-slate-500 transition hover:text-amber-700"
             >
               Dashboard
             </Link>
@@ -205,9 +222,9 @@ export default function TicketDetail() {
 
             <Link
               to="/user/my-tickets"
-              className="text-slate-500 transition hover:text-indigo-600"
+              className="text-slate-500 transition hover:text-amber-700"
             >
-              My Tickets
+              My tickets
             </Link>
 
             <ChevronRight size={15} className="text-slate-300" />
@@ -219,26 +236,27 @@ export default function TicketDetail() {
 
           <Link
             to="/user/my-tickets"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600"
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800"
           >
             <ArrowLeft size={16} />
-            All Tickets
+            All tickets
           </Link>
         </div>
 
         {/* Ticket header */}
-        <section className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-indigo-950 to-violet-900 text-white shadow-md">
-          <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-violet-500/20 blur-3xl" />
+        <section className="relative mb-6 overflow-hidden rounded-[24px] border border-amber-200/15 bg-[#0a0907] text-white shadow-[0_22px_50px_rgba(20,15,5,0.3),inset_0_1px_0_rgba(253,234,168,0.12)]">
+          <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-amber-600/25 blur-[100px]" />
+          <div className="pointer-events-none absolute -bottom-28 right-10 h-64 w-64 rounded-full bg-yellow-500/15 blur-[100px]" />
 
-          <div className="relative flex flex-col justify-between gap-5 p-5 sm:flex-row sm:items-center sm:p-7">
+          <div className="relative flex flex-col justify-between gap-5 p-5 sm:flex-row sm:items-start sm:p-7">
             <div className="flex min-w-0 items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/10">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-300/10 text-amber-300">
                 <Ticket size={24} />
               </div>
 
               <div className="min-w-0">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 font-mono text-xs font-bold">
+                <div className="mb-2.5 flex flex-wrap items-center gap-2">
+                  <span className="rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 font-mono text-xs font-bold text-amber-100">
                     {ticketNumber}
                   </span>
 
@@ -252,12 +270,12 @@ export default function TicketDetail() {
                   </span>
                 </div>
 
-                <h1 className="break-words text-xl font-bold tracking-tight sm:text-2xl">
+                <h1 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl">
                   {subject}
                 </h1>
 
-                <p className="mt-1.5 text-sm text-indigo-100/80">
-                  View your request and communicate with support.
+                <p className="mt-2 text-sm text-white/55">
+                  Follow progress and chat with our support team below.
                 </p>
               </div>
             </div>
@@ -266,7 +284,7 @@ export default function TicketDetail() {
               type="button"
               onClick={handleRetry}
               disabled={isFetching}
-              className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold transition hover:bg-white/15 disabled:opacity-60 sm:self-center"
+              className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2.5 text-sm font-semibold text-white/85 backdrop-blur transition hover:bg-white/10 disabled:opacity-60"
             >
               <RefreshCw
                 size={15}
@@ -275,13 +293,61 @@ export default function TicketDetail() {
               {isFetching ? "Refreshing..." : "Refresh"}
             </button>
           </div>
+
+          {/* Progress */}
+          <div className="relative border-t border-white/10 px-5 py-4 sm:px-7">
+            <ol className="flex items-center">
+              {progressSteps.map((step, index) => {
+                const done = index <= stepIndex;
+                const last = index === progressSteps.length - 1;
+
+                return (
+                  <li
+                    key={step}
+                    className={`flex items-center ${last ? "" : "flex-1"}`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
+                          done
+                            ? "bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 text-neutral-950"
+                            : "border border-white/20 text-white/40"
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+
+                      <span
+                        className={`text-xs font-medium sm:text-sm ${
+                          done ? "text-amber-100" : "text-white/40"
+                        }`}
+                      >
+                        {step}
+                      </span>
+                    </div>
+
+                    {!last && (
+                      <span
+                        className={`mx-3 h-px flex-1 sm:mx-4 ${
+                          index < stepIndex
+                            ? "bg-amber-400/70"
+                            : "bg-white/15"
+                        }`}
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
         </section>
 
         {isError && (
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900">
             <AlertCircle size={18} className="mt-0.5 shrink-0" />
             <p>
-              Ticket refresh failed. Showing previously loaded information.
+              We couldn't refresh this ticket. You're seeing the last
+              information we loaded.
             </p>
           </div>
         )}
@@ -290,11 +356,11 @@ export default function TicketDetail() {
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.7fr)]">
           <aside className="min-w-0">
             <div className="mb-4">
-              <h2 className="text-lg font-bold text-slate-900">
-                Ticket information
+              <h2 className="text-lg font-semibold text-slate-900">
+                About this ticket
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Status, priority and assignment details
+                Status, priority and who's helping you
               </p>
             </div>
 
@@ -302,8 +368,8 @@ export default function TicketDetail() {
           </aside>
 
           {/* Conversation panel */}
-          <section className="flex min-h-[480px] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-         
+          <section className="flex min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl border border-amber-200/50 bg-white shadow-[0_8px_30px_rgba(120,85,10,0.06)]">
+           
 
             <div className="min-h-0 flex-1">
               <TicketChat
@@ -312,7 +378,7 @@ export default function TicketDetail() {
               />
             </div>
 
-            <div className="shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4">
+            <div className="shrink-0 border-t border-amber-100 bg-white p-3 sm:p-4">
               <ChatInput
                 ticketId={ticketId}
                 disabled={isClosed}
@@ -325,10 +391,10 @@ export default function TicketDetail() {
         <footer className="py-6 text-center">
           <Link
             to="/user/my-tickets"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 transition hover:text-indigo-800"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 transition hover:text-amber-900"
           >
             <ArrowLeft size={15} />
-            Return to My Tickets
+            Back to my tickets
           </Link>
         </footer>
       </div>

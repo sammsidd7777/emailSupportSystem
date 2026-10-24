@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import {
   Search,
@@ -13,6 +12,9 @@ import {
   CheckCircle2,
   AlertCircle,
   UserRound,
+  MapPin,
+  Clock3,
+  Hash,
   X,
 } from "lucide-react";
 
@@ -67,6 +69,40 @@ export default function ManageUsers() {
 
   const getCreatedAt = (user) =>
     user.createdAt || user.CreatedAt || user.created_at;
+
+  /* display-only getters for the details panel (shown only if the API sends them) */
+  const getUpdatedAt = (user) =>
+    user.updatedAt || user.UpdatedAt || user.updated_at;
+
+  const getLastLogin = (user) =>
+    user.lastLogin || user.LastLogin || user.lastLoginAt || user.LastLoginAt;
+
+  const getLocation = (user) => {
+    const address = user.address || user.Address;
+
+    const parts = [
+      typeof address === "string" ? address : "",
+      user.city || user.City,
+      user.state || user.State,
+      user.country || user.Country,
+    ].filter(Boolean);
+
+    return parts.join(", ");
+  };
+
+  const getInitials = (user) => {
+    const name = getName(user);
+
+    return name !== "Unnamed customer"
+      ? name
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase()
+      : "";
+  };
 
   const isActive = (user) =>
     user.isActive !== undefined
@@ -174,23 +210,34 @@ export default function ManageUsers() {
         });
   };
 
+  const formatDateTime = (date) => {
+    if (!date) return "—";
+
+    const parsed = new Date(date);
+
+    return Number.isNaN(parsed.getTime())
+      ? "—"
+      : parsed.toLocaleString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl space-y-7">
+    <div className="min-h-full">
+      <div className="space-y-5">
 
         {/* Page header */}
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-blue-600">
-              <ShieldCheck size={17} />
-              <span>Administration</span>
-            </div>
-
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <h1 className="text-4xl font-semibold tracking-tight text-[#0f3d28] sm:text-5xl">
               Manage Customers
             </h1>
 
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-neutral-500 sm:text-base">
               View customer accounts and manage account access.
             </p>
           </div>
@@ -199,7 +246,7 @@ export default function ManageUsers() {
             type="button"
             onClick={handleRefresh}
             disabled={isFetching}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/20 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw
               size={16}
@@ -212,33 +259,33 @@ export default function ManageUsers() {
         {/* Statistics */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
+            featured
             title="Total Customers"
             value={users.length}
             description="Registered customer accounts"
-            icon={<Users size={22} />}
-            iconClass="bg-blue-50 text-blue-600"
+            icon={<Users size={20} />}
           />
 
           <StatCard
             title="Active Customers"
             value={activeCount}
             description="Accounts currently enabled"
-            icon={<UserCheck size={22} />}
-            iconClass="bg-emerald-50 text-emerald-600"
+            icon={<UserCheck size={20} />}
+            iconClass="bg-[#1f7a4d]/10 text-[#1f7a4d]"
           />
 
           <StatCard
             title="Inactive Customers"
             value={inactiveCount}
             description="Accounts currently disabled"
-            icon={<UserX size={22} />}
+            icon={<UserX size={20} />}
             iconClass="bg-rose-50 text-rose-600"
           />
         </div>
 
         {/* Notifications */}
         {error && (
-          <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+          <div className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <AlertCircle size={19} className="mt-0.5 shrink-0" />
             <div className="flex-1">{error}</div>
             <button
@@ -252,8 +299,11 @@ export default function ManageUsers() {
         )}
 
         {success && (
-          <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-700">
-            <CheckCircle2 size={19} className="mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 rounded-3xl border border-[#1f7a4d]/30 bg-[#1f7a4d]/10 p-4 text-sm font-medium text-[#0f3d28]">
+            <CheckCircle2
+              size={19}
+              className="mt-0.5 shrink-0 text-[#1f7a4d]"
+            />
             <div className="flex-1">{success}</div>
             <button
               type="button"
@@ -266,7 +316,7 @@ export default function ManageUsers() {
         )}
 
         {(isError || queryError) && !error && (
-          <div className="flex items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+          <div className="flex items-center gap-3 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <AlertCircle size={19} />
             {queryError?.data?.message ||
               queryError?.error ||
@@ -275,15 +325,15 @@ export default function ManageUsers() {
         )}
 
         {/* Main content */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-3xl bg-white">
 
           {/* Search toolbar */}
-          <div className="flex flex-col gap-4 border-b border-slate-100 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-[#0f3d28]">
                 Customer Directory
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-neutral-500">
                 Search, review, and update customer accounts.
               </p>
             </div>
@@ -292,7 +342,7 @@ export default function ManageUsers() {
               <div className="relative sm:w-72">
                 <Search
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
                 />
 
                 <input
@@ -300,14 +350,14 @@ export default function ManageUsers() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search name, email, phone..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                  className="w-full rounded-full border border-neutral-200 bg-[#f7f7f5] py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-neutral-400 hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15"
                 />
               </div>
 
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                className="rounded-full border border-neutral-200 bg-[#f7f7f5] px-5 py-3 text-sm font-medium text-neutral-700 outline-none transition hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15"
               >
                 <option value="all">All statuses</option>
                 <option value="active">Active only</option>
@@ -317,21 +367,21 @@ export default function ManageUsers() {
           </div>
 
           {/* Results summary */}
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50/70 px-4 py-3 text-xs text-slate-500 sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3 text-xs text-neutral-500 sm:px-6">
             <span>
               Showing{" "}
-              <strong className="text-slate-700">
+              <strong className="text-[#0f3d28]">
                 {filteredUsers.length}
               </strong>{" "}
               of{" "}
-              <strong className="text-slate-700">
+              <strong className="text-[#0f3d28]">
                 {users.length}
               </strong>{" "}
               customers
             </span>
 
             {isFetching && (
-              <span className="inline-flex items-center gap-2 text-blue-600">
+              <span className="inline-flex items-center gap-2 text-[#1f7a4d]">
                 <RefreshCw size={13} className="animate-spin" />
                 Updating...
               </span>
@@ -340,11 +390,11 @@ export default function ManageUsers() {
 
           {/* Table */}
           {isLoading ? (
-            <div className="space-y-4 p-6">
+            <div className="space-y-4 p-6 pt-2">
               {[1, 2, 3, 4].map((item) => (
                 <div
                   key={item}
-                  className="h-16 animate-pulse rounded-xl bg-slate-100"
+                  className="h-16 animate-pulse rounded-2xl bg-neutral-100"
                 />
               ))}
             </div>
@@ -354,29 +404,29 @@ export default function ManageUsers() {
                 size={36}
                 className="mx-auto mb-3 text-red-400"
               />
-              <h3 className="font-semibold text-slate-800">
+              <h3 className="font-semibold text-neutral-800">
                 Couldn't load customers
               </h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-neutral-500">
                 Check your connection and try again.
               </p>
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                className="mt-4 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
               >
                 Try again
               </button>
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="px-5 py-16 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
                 <Users size={27} />
               </div>
-              <h3 className="font-semibold text-slate-900">
+              <h3 className="font-semibold text-neutral-900">
                 No customers found
               </h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-neutral-500">
                 Try changing your search or status filter.
               </p>
 
@@ -387,26 +437,30 @@ export default function ManageUsers() {
                     setSearch("");
                     setStatus("all");
                   }}
-                  className="mt-4 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                  className="mt-4 text-sm font-semibold text-[#1f7a4d] hover:text-[#0f3d28]"
                 >
                   Clear filters
                 </button>
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto px-3 pb-3 sm:px-4 sm:pb-4">
               <table className="w-full min-w-[850px] text-left">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-white text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    <th className="px-5 py-4">Customer</th>
-                    <th className="px-5 py-4">Phone</th>
-                    <th className="px-5 py-4">Joined</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Action</th>
+                <thead className="bg-[#f7f7f5] text-xs text-neutral-500">
+                  <tr>
+                    <th className="rounded-l-2xl px-5 py-3.5 font-medium">
+                      Customer
+                    </th>
+                    <th className="px-5 py-3.5 font-medium">Phone</th>
+                    <th className="px-5 py-3.5 font-medium">Joined</th>
+                    <th className="px-5 py-3.5 font-medium">Status</th>
+                    <th className="rounded-r-2xl px-5 py-3.5 text-right font-medium">
+                      Action
+                    </th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-neutral-100">
                   {filteredUsers.map((user) => {
                     const active = isActive(user);
                     const name = getName(user);
@@ -416,28 +470,20 @@ export default function ManageUsers() {
                     return (
                       <tr
                         key={user._id}
-                        className="transition-colors hover:bg-slate-50/80"
+                        className="transition-colors hover:bg-[#f7f7f5]"
                       >
                         {/* Customer information */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700 ring-1 ring-blue-100">
-                              {name !== "Unnamed customer"
-                                ? name
-                                    .split(" ")
-                                    .filter(Boolean)
-                                    .slice(0, 2)
-                                    .map((part) => part[0])
-                                    .join("")
-                                    .toUpperCase()
-                                : <UserRound size={20} />}
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#63c192] to-[#1f7a4d] text-sm font-bold text-white">
+                              {getInitials(user) || <UserRound size={20} />}
                             </div>
 
                             <div className="min-w-0">
-                              <p className="font-semibold text-slate-900">
+                              <p className="font-semibold text-[#0f3d28]">
                                 {name}
                               </p>
-                              <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+                              <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">
                                 <Mail size={13} className="shrink-0" />
                                 <span className="max-w-[230px] truncate">
                                   {email || "No email provided"}
@@ -449,18 +495,18 @@ export default function ManageUsers() {
 
                         {/* Phone */}
                         <td className="px-5 py-4">
-                          <span className="inline-flex items-center gap-2 text-sm text-slate-600">
-                            <Phone size={14} className="text-slate-400" />
+                          <span className="inline-flex items-center gap-2 text-sm text-neutral-600">
+                            <Phone size={14} className="text-neutral-400" />
                             {phone || "—"}
                           </span>
                         </td>
 
                         {/* Joined date */}
                         <td className="px-5 py-4">
-                          <span className="inline-flex items-center gap-2 text-sm text-slate-600">
+                          <span className="inline-flex items-center gap-2 text-sm text-neutral-600">
                             <CalendarDays
                               size={14}
-                              className="text-slate-400"
+                              className="text-neutral-400"
                             />
                             {formatDate(getCreatedAt(user))}
                           </span>
@@ -469,10 +515,10 @@ export default function ManageUsers() {
                         {/* Status */}
                         <td className="px-5 py-4">
                           <span
-                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${
                               active
-                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
-                                : "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200"
+                                ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                                : "bg-rose-50 text-rose-700 ring-rose-200"
                             }`}
                           >
                             <span
@@ -490,7 +536,7 @@ export default function ManageUsers() {
                             <button
                               type="button"
                               onClick={() => setSelectedUser(user)}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                              className="rounded-full border border-[#1f7a4d]/50 px-4 py-2 text-xs font-semibold text-[#0f3d28] transition hover:bg-[#0f3d28] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50"
                             >
                               Details
                             </button>
@@ -499,7 +545,7 @@ export default function ManageUsers() {
                               type="button"
                               disabled={busyId === user._id}
                               onClick={() => toggleStatus(user)}
-                              className={`min-w-[100px] rounded-lg px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                              className={`min-w-[100px] rounded-full px-4 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:cursor-not-allowed disabled:opacity-50 ${
                                 active
                                   ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
                                   : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -523,11 +569,11 @@ export default function ManageUsers() {
 
           {/* Footer */}
           {!isLoading && filteredUsers.length > 0 && (
-            <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-xs text-slate-500">
+            <div className="bg-[#f7f7f5] px-5 py-3 text-xs text-neutral-500 sm:px-6">
               Customer management
-              <span className="mx-2 text-slate-300">•</span>
+              <span className="mx-2 text-neutral-300">•</span>
               {activeCount} active
-              <span className="mx-2 text-slate-300">•</span>
+              <span className="mx-2 text-neutral-300">•</span>
               {inactiveCount} inactive
             </div>
           )}
@@ -537,7 +583,7 @@ export default function ManageUsers() {
       {/* Customer details modal */}
       {selectedUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#06190f]/50 p-4 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setSelectedUser(null);
@@ -548,63 +594,72 @@ export default function ManageUsers() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="customer-details-title"
-            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[28px] bg-[#f7f7f5] shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 p-5">
-              <div>
-                <h2
-                  id="customer-details-title"
-                  className="font-bold text-slate-900"
-                >
-                  Customer Details
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Account information
-                </p>
-              </div>
+            {/* Profile banner */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#1b7048] via-[#115236] to-[#0a2e1e] p-6 text-white">
+              <div className="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full border border-white/10" />
+              <div className="pointer-events-none absolute -bottom-4 -right-4 h-20 w-20 rounded-full border border-white/10" />
 
               <button
                 type="button"
                 onClick={() => setSelectedUser(null)}
                 aria-label="Close customer details"
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               >
-                <X size={19} />
+                <X size={18} />
               </button>
-            </div>
 
-            <div className="p-5">
-              <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-lg font-bold text-blue-700">
-                  {getName(selectedUser)
-                    .split(" ")
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((part) => part[0])
-                    .join("")
-                    .toUpperCase()}
+              <p className="text-xs font-medium text-white/60">
+                Customer details
+              </p>
+
+              <div className="relative mt-4 flex items-center gap-4">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#63c192] text-xl font-bold text-[#06190f]">
+                  {getInitials(selectedUser) || <UserRound size={26} />}
                 </div>
 
                 <div className="min-w-0">
-                  <h3 className="font-bold text-slate-900">
+                  <h2
+                    id="customer-details-title"
+                    className="truncate text-xl font-semibold"
+                  >
                     {getName(selectedUser)}
-                  </h3>
-                  <p className="break-all text-sm text-slate-500">
+                  </h2>
+                  <p className="mt-0.5 break-all text-sm text-white/70">
                     {getEmail(selectedUser) || "No email provided"}
                   </p>
+
                   <span
-                    className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
                       isActive(selectedUser)
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-rose-50 text-rose-700"
+                        ? "bg-[#63c192]/20 text-[#9ee6bd]"
+                        : "bg-rose-400/20 text-rose-200"
                     }`}
                   >
-                    {isActive(selectedUser) ? "Active account" : "Inactive account"}
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        isActive(selectedUser)
+                          ? "bg-[#63c192]"
+                          : "bg-rose-300"
+                      }`}
+                    />
+                    {isActive(selectedUser)
+                      ? "Active account"
+                      : "Inactive account"}
                   </span>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-4">
+            <div className="space-y-3 p-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailRow
+                  icon={<Mail size={17} />}
+                  label="Email"
+                  value={getEmail(selectedUser) || "Not provided"}
+                />
+
                 <DetailRow
                   icon={<Phone size={17} />}
                   label="Phone"
@@ -620,13 +675,41 @@ export default function ManageUsers() {
                 <DetailRow
                   icon={<ShieldCheck size={17} />}
                   label="Role"
-                  value={selectedUser.role || selectedUser.Role || "Customer"}
+                  value={
+                    selectedUser.role || selectedUser.Role || "Customer"
+                  }
                 />
 
+                {getUpdatedAt(selectedUser) && (
+                  <DetailRow
+                    icon={<Clock3 size={17} />}
+                    label="Last updated"
+                    value={formatDateTime(getUpdatedAt(selectedUser))}
+                  />
+                )}
+
+                {getLastLogin(selectedUser) && (
+                  <DetailRow
+                    icon={<Clock3 size={17} />}
+                    label="Last login"
+                    value={formatDateTime(getLastLogin(selectedUser))}
+                  />
+                )}
+
+                {getLocation(selectedUser) && (
+                  <DetailRow
+                    icon={<MapPin size={17} />}
+                    label="Location"
+                    value={getLocation(selectedUser)}
+                    wide
+                  />
+                )}
+
                 <DetailRow
-                  icon={<UserRound size={17} />}
+                  icon={<Hash size={17} />}
                   label="User ID"
                   value={selectedUser._id || "—"}
+                  wide
                 />
               </div>
 
@@ -634,10 +717,10 @@ export default function ManageUsers() {
                 type="button"
                 disabled={busyId === selectedUser._id}
                 onClick={() => toggleStatus(selectedUser)}
-                className={`mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold transition disabled:opacity-50 ${
+                className={`mt-2 w-full rounded-full px-4 py-3.5 text-sm font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:opacity-50 ${
                   isActive(selectedUser)
-                    ? "bg-rose-600 text-white hover:bg-rose-700"
-                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : "bg-gradient-to-r from-[#1b7048] to-[#0d3b27] hover:brightness-110"
                 }`}
               >
                 {busyId === selectedUser._id
@@ -654,33 +737,65 @@ export default function ManageUsers() {
   );
 }
 
-function StatCard({ title, value, description, icon, iconClass }) {
+function StatCard({
+  title,
+  value,
+  description,
+  icon,
+  iconClass = "",
+  featured = false,
+}) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-            {value}
-          </p>
-          <p className="mt-2 text-xs text-slate-500">{description}</p>
-        </div>
+    <div
+      className={`relative overflow-hidden rounded-3xl p-5 sm:p-6 ${
+        featured
+          ? "bg-gradient-to-br from-[#1b7048] via-[#115236] to-[#0a2e1e] text-white"
+          : "bg-white text-[#0f3d28]"
+      }`}
+    >
+      {featured && (
+        <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full border border-white/10" />
+      )}
 
-        <div className={`rounded-xl p-3 ${iconClass}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-base font-medium">{title}</p>
+
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+            featured ? "bg-white text-[#0f3d28]" : iconClass
+          }`}
+        >
           {icon}
-        </div>
+        </span>
       </div>
+
+      <p className="mt-4 text-5xl font-semibold tracking-tight">
+        {value}
+      </p>
+      <p
+        className={`mt-3 text-xs ${
+          featured ? "text-[#9ee6bd]" : "text-[#1f7a4d]"
+        }`}
+      >
+        {description}
+      </p>
     </div>
   );
 }
 
-function DetailRow({ icon, label, value }) {
+function DetailRow({ icon, label, value, wide = false }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="mt-0.5 text-slate-400">{icon}</div>
+    <div
+      className={`flex items-start gap-3 rounded-2xl bg-white p-4 ${
+        wide ? "sm:col-span-2" : ""
+      }`}
+    >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
+        {icon}
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-500">{label}</p>
-        <p className="mt-1 break-words text-sm font-medium text-slate-800">
+        <p className="text-xs font-medium text-neutral-500">{label}</p>
+        <p className="mt-1 break-words text-sm font-semibold text-[#0f3d28]">
           {value}
         </p>
       </div>
