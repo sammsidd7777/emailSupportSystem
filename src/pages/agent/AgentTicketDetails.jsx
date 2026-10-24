@@ -66,9 +66,9 @@ export default function AgentTicketDetails() {
     null;
 
 const messages =
-  oldMSG?.messages ??
-  oldMSG?.data?.messages ??
-  oldMSG?.data?.data?.messages ??
+  oldMSG?.Messages ??
+  oldMSG?.data?.Messages ??
+  oldMSG?.data?.data?.Messages ??
   oldMSG?.data?.data ??
   oldMSG?.data ??
   [];
