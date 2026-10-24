@@ -5,7 +5,7 @@ export const authApi = createApi({
   reducerPath: "authApi",
 
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:8000/api/auth",
+    baseUrl: "https://email-support-system-spi.vercel.app/api/auth",
     credentials: "include",
   }),
 
