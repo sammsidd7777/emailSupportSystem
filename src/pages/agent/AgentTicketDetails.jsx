@@ -12,10 +12,12 @@ import {
   useGetAgentTicketByIdQuery,
   useReplyToTicketMutation,
   useUpdateTicketStatusMutation,
+  
 } from "../../services/RTK/agentApi";
 
 import AgentTicketInfo from "./AgentTicketInfo";
 import AgentTicketChat from "./AgentTicketChat";
+import { useGetMessagesByTicketIdQuery } from "../../services/RTK/messageApi";
 
 export default function AgentTicketDetails() {
   const { ticketId } = useParams();
@@ -36,6 +38,8 @@ export default function AgentTicketDetails() {
     skip: !ticketId,
   });
 
+  const {data:oldMSG}=useGetMessagesByTicketIdQuery();
+
   const [replyToTicket, { isLoading: sending }] =
     useReplyToTicketMutation();
 
@@ -55,10 +59,10 @@ export default function AgentTicketDetails() {
     null;
 
   const messages =
-    ticket?.messages ??
-    data?.messages ??
-    data?.data?.messages ??
-    data?.data?.data?.messages ??
+    oldMSG?.messages ??
+    oldMSG?.messages ??
+    oldMSG?.data?.messages ??
+    oldMSG?.data?.data?.messages ??
     [];
 
   const normalizedMessages = Array.isArray(messages) ? messages : [];
