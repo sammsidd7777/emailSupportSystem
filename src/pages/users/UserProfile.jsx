@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   UserRound,
   Mail,
@@ -10,29 +9,100 @@ import {
   LockKeyhole,
   Save,
   X,
+  KeyRound,
+  CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api";
+import {
+  useGetMyProfileQuery,
+  useUpdateProfileMutation,
+  useUpdateEmailMutation,
+  useVerifyEmailOtpMutation,
+  useChangePasswordMutation,
+} from "../../services/RTK/userApi";
+
+const normalizeUser = (payload) => {
+  const raw =
+    payload?.user ||
+    payload?.data?.user ||
+    payload?.data ||
+    payload ||
+    {};
+
+  return {
+    id: raw._id || raw.id || "",
+    name: raw.Name ?? raw.name ?? "",
+    email: raw.Email ?? raw.email ?? "",
+    phone: raw.Phone ?? raw.phone ?? "",
+    role: raw.Role ?? raw.role ?? "customer",
+    createdAt: raw.createdAt || raw.created_at || "",
+  };
+};
+
+const getErrorMessage = (error, fallback) =>
+  error?.data?.message ||
+  error?.error ||
+  error?.message ||
+  fallback;
+
+const inputClass =
+  "w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 disabled:cursor-not-allowed disabled:opacity-60";
+
+const labelClass =
+  "mb-2 block text-sm font-medium text-zinc-300";
+
+const primaryButton =
+  "inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50";
+
+const secondaryButton =
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function UserProfile() {
-  const [user, setUser] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    role: "customer",
-    createdAt: "",
-  });
+  const {
+    data: profileResponse,
+    isLoading: isProfileLoading,
+    isFetching: isProfileFetching,
+    error: profileError,
+    refetch,
+  } = useGetMyProfileQuery();
+
+  const [
+    updateProfile,
+    { isLoading: isSavingProfile },
+  ] = useUpdateProfileMutation();
+
+  const [
+    updateEmail,
+    { isLoading: isRequestingOtp },
+  ] = useUpdateEmailMutation();
+
+  const [
+    verifyEmailOtp,
+    { isLoading: isVerifyingOtp },
+  ] = useVerifyEmailOtpMutation();
+
+  const [
+    changePassword,
+    { isLoading: isChangingPassword },
+  ] = useChangePasswordMutation();
+
+  const [editing, setEditing] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     name: "",
     phone: "",
   });
 
-  const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [emailForm, setEmailForm] = useState({
+    newEmail: "",
+    password: "",
+  });
+
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -40,142 +110,24 @@ export default function UserProfile() {
     confirmPassword: "",
   });
 
-  const [changingPassword, setChangingPassword] = useState(false);
+  const user = useMemo(
+    () => normalizeUser(profileResponse),
+    [profileResponse]
+  );
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await fetch(`${API_URL}/users/profile`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Profile load nahi ho payi");
-      }
-
-      const profile = data.user || data.data?.user || data.data;
-
-      setUser(profile);
+    if (profileResponse) {
       setForm({
-        name: profile.name || "",
-        phone: profile.phone || "",
+        name: user.name,
+        phone: String(user.phone ?? ""),
       });
-    } catch (err) {
-      setError(err.message || "Something went wrong");
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-
-    try {
-      setSaving(true);
-      setMessage("");
-      setError("");
-
-      const response = await fetch(`${API_URL}/users/profile`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Profile update nahi hui");
-      }
-
-      const updatedUser =
-        data.user || data.data?.user || data.data || {
-          ...user,
-          ...form,
-        };
-
-      setUser((previous) => ({ ...previous, ...updatedUser }));
-      setForm({
-        name: updatedUser.name || form.name,
-        phone: updatedUser.phone || form.phone,
-      });
-
-      setEditing(false);
-      setMessage(data.message || "Profile successfully update ho gayi");
-    } catch (err) {
-      setError(err.message || "Profile update failed");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    setMessage("");
-    setError("");
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError("New password aur confirm password match nahi karte.");
-      return;
-    }
-
-    if (passwordForm.newPassword.length < 8) {
-      setError("Password kam se kam 8 characters ka hona chahiye.");
-      return;
-    }
-
-    try {
-      setChangingPassword(true);
-
-      const response = await fetch(`${API_URL}/users/change-password`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Password change nahi hua");
-      }
-
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-
-      setMessage(data.message || "Password successfully change ho gaya");
-    } catch (err) {
-      setError(err.message || "Password change failed");
-    } finally {
-      setChangingPassword(false);
-    }
-  };
+  }, [
+    profileResponse,
+    user.name,
+    user.phone,
+    user.email,
+  ]);
 
   const initials = (user.name || "User")
     .trim()
@@ -185,72 +137,300 @@ export default function UserProfile() {
     .join("")
     .toUpperCase();
 
-  if (loading) {
+  const clearAlerts = () => {
+    setMessage("");
+    setError("");
+  };
+
+  // Update profile
+  const handleUpdateProfile = async (event) => {
+    event.preventDefault();
+    clearAlerts();
+
+    try {
+      const cleanName = form.name.trim();
+      const cleanPhone = form.phone.trim();
+
+      const result = await updateProfile({
+        name: cleanName,
+        phone: cleanPhone,
+        Name: cleanName,
+        Phone: cleanPhone,
+      }).unwrap();
+
+      setMessage(
+        result?.message ||
+          "Profile updated successfully."
+      );
+
+      setEditing(false);
+      await refetch();
+    } catch (err) {
+      setError(
+        getErrorMessage(
+          err,
+          "Could not update your profile."
+        )
+      );
+    }
+  };
+
+  // Request email OTP
+  const handleRequestEmailOtp = async (event) => {
+    event.preventDefault();
+    clearAlerts();
+
+    const newEmail = emailForm.newEmail
+      .trim()
+      .toLowerCase();
+
+    if (
+      newEmail === user.email.trim().toLowerCase()
+    ) {
+      setError(
+        "Please enter an email different from your current email."
+      );
+      return;
+    }
+
+    if (!newEmail || !emailForm.password) {
+      setError(
+        "Enter your new email and current password."
+      );
+      return;
+    }
+
+    try {
+      const result = await updateEmail({
+        newEmail,
+        password: emailForm.password,
+      }).unwrap();
+
+      setOtpSent(true);
+      setOtp("");
+
+      setMessage(
+        result?.message ||
+          "OTP sent to your new email address."
+      );
+    } catch (err) {
+      setError(
+        getErrorMessage(
+          err,
+          "Could not send the verification code."
+        )
+      );
+    }
+  };
+
+  // Verify email OTP
+  const handleVerifyEmailOtp = async (event) => {
+    event.preventDefault();
+    clearAlerts();
+
+    if (!/^\d{6}$/.test(otp)) {
+      setError(
+        "Enter the 6-digit OTP sent to your new email."
+      );
+      return;
+    }
+
+    try {
+      const result = await verifyEmailOtp({
+        otp,
+      }).unwrap();
+
+      setMessage(
+        result?.message ||
+          "Email updated successfully."
+      );
+
+      setOtpSent(false);
+      setOtp("");
+
+      setEmailForm({
+        newEmail: "",
+        password: "",
+      });
+
+      await refetch();
+    } catch (err) {
+      setError(
+        getErrorMessage(
+          err,
+          "OTP verification failed."
+        )
+      );
+    }
+  };
+
+  // Change password
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    clearAlerts();
+
+    if (
+      passwordForm.newPassword !==
+      passwordForm.confirmPassword
+    ) {
+      setError(
+        "New password and confirm password do not match."
+      );
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      setError(
+        "Password must contain at least 8 characters."
+      );
+      return;
+    }
+
+    try {
+      const result = await changePassword({
+        currentPassword:
+          passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      }).unwrap();
+
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setMessage(
+        result?.message ||
+          "Password changed successfully."
+      );
+    } catch (err) {
+      setError(
+        getErrorMessage(
+          err,
+          "Could not change your password."
+        )
+      );
+    }
+  };
+
+    // Loading screen
+  if (isProfileLoading) {
     return (
-      <div className="flex min-h-80 items-center justify-center">
-        <p className="animate-pulse text-gray-500">
-          Loading profile...
-        </p>
+      <div className="flex min-h-80 items-center justify-center bg-[#090909] text-amber-300">
+        <div className="flex items-center gap-3 text-sm">
+          <RefreshCw
+            size={18}
+            className="animate-spin"
+          />
+          Loading your profile...
+        </div>
+      </div>
+    );
+  }
+
+  // Error screen
+  if (profileError && !profileResponse) {
+    return (
+      <div className="min-h-screen bg-[#090909] p-6 text-zinc-100">
+        <div className="mx-auto max-w-xl rounded-2xl border border-red-400/20 bg-red-400/5 p-6">
+          <h2 className="text-lg font-bold text-red-300">
+            Could not load profile
+          </h2>
+
+          <p className="mt-2 text-sm text-zinc-400">
+            {getErrorMessage(
+              profileError,
+              "Please sign in and try again."
+            )}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className={`${primaryButton} mt-4`}
+          >
+            Try again
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
+    <main className="min-h-screen bg-[#090909] px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
-        {/* Page heading */}
-        <div>
-          <p className="text-sm font-medium text-blue-600">
-            Account Settings
-          </p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">
-            My Profile
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Apni personal information aur account settings manage karein.
-          </p>
-        </div>
 
-        {/* Alerts */}
+        {/* Page Heading */}
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-400">
+              BitMax / Account
+            </p>
+
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+              My Profile
+            </h1>
+
+            <p className="mt-2 text-sm text-zinc-400">
+              Manage your personal information and account security.
+            </p>
+          </div>
+
+          {isProfileFetching && (
+            <span className="text-xs text-amber-300">
+              Refreshing profile...
+            </span>
+          )}
+        </header>
+
+        {/* Success Message */}
         {message && (
           <div
             role="status"
-            className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
+            className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300"
           >
             {message}
           </div>
         )}
 
+        {/* Error Message */}
         {error && (
           <div
             role="alert"
-            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300"
           >
             {error}
           </div>
         )}
 
-        {/* Profile banner */}
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="h-28 bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-600 sm:h-36" />
+        {/* Profile Header Card */}
+        <section className="overflow-hidden rounded-3xl border border-amber-400/15 bg-[#111111] shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+
+          <div className="h-32 bg-gradient-to-r from-[#332300] via-[#9a6d08] to-[#e6b83f] sm:h-40" />
 
           <div className="px-5 pb-6 sm:px-8">
-            <div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
+            <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
+
               <div className="flex items-end gap-4">
-                <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-white bg-blue-100 text-2xl font-bold text-blue-700 shadow-sm sm:h-28 sm:w-28">
-                  {initials}
+
+                {/* Avatar */}
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-4 border-[#111111] bg-[#1a160b] text-2xl font-black text-amber-300 shadow-lg sm:h-28 sm:w-28">
+                  {initials || "U"}
                 </div>
 
-                <div className="pb-1">
-                  <h2 className="text-xl font-bold text-slate-900">
+                {/* User Details */}
+                <div className="min-w-0 pb-1">
+                  <h2 className="truncate text-xl font-bold text-white">
                     {user.name || "Your Name"}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
+
+                  <p className="mt-1 break-all text-sm text-zinc-400">
                     {user.email || "Email not available"}
                   </p>
-                  <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-3 py-1 text-xs font-semibold capitalize text-green-700">
+
+                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-semibold capitalize text-amber-300">
                     <ShieldCheck size={14} />
-                    {user.role || "Customer"}
+                    {user.role || "customer"}
                   </span>
                 </div>
               </div>
@@ -260,34 +440,37 @@ export default function UserProfile() {
                   type="button"
                   onClick={() => {
                     setForm({
-                      name: user.name || "",
-                      phone: user.phone || "",
+                      name: user.name,
+                      phone: String(user.phone ?? ""),
                     });
+
                     setEditing(true);
-                    setMessage("");
-                    setError("");
+                    clearAlerts();
                   }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  className={primaryButton}
                 >
                   <Pencil size={16} />
-                  Edit Profile
+                  Edit profile
                 </button>
               )}
             </div>
           </div>
         </section>
 
-        {/* Personal information */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        {/* Personal Information */}
+        <section className="rounded-3xl border border-white/10 bg-[#111111] p-5 sm:p-7">
+
           <div className="mb-6 flex items-center gap-3">
-            <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
+            <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-amber-300">
               <UserRound size={21} />
             </div>
+
             <div>
-              <h2 className="font-bold text-slate-900">
-                Personal Information
+              <h2 className="font-bold text-white">
+                Personal information
               </h2>
-              <p className="text-sm text-slate-500">
+
+              <p className="mt-1 text-sm text-zinc-500">
                 Your basic account details
               </p>
             </div>
@@ -295,127 +478,160 @@ export default function UserProfile() {
 
           <form onSubmit={handleUpdateProfile}>
             <div className="grid gap-5 sm:grid-cols-2">
+
+              {/* Full Name */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Full Name
+                <label className={labelClass}>
+                  Full name
                 </label>
+
                 <div className="relative">
                   <UserRound
                     size={17}
-                    className="absolute left-3 top-3.5 text-slate-400"
+                    className="absolute left-3 top-3.5 text-amber-400"
                   />
+
                   <input
                     name="name"
-                    value={editing ? form.name : user.name || ""}
-                    onChange={handleChange}
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        name: e.target.value,
+                      })
+                    }
                     disabled={!editing}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:text-slate-600"
+                    className={`${inputClass} pl-10`}
                     placeholder="Enter your name"
                   />
                 </div>
               </div>
 
+              {/* Email */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Email Address
+                <label className={labelClass}>
+                  Email address
                 </label>
+
                 <div className="relative">
                   <Mail
                     size={17}
-                    className="absolute left-3 top-3.5 text-slate-400"
+                    className="absolute left-3 top-3.5 text-amber-400"
                   />
+
                   <input
                     type="email"
-                    value={user.email || ""}
+                    value={user.email}
                     disabled
-                    className="w-full rounded-xl border border-slate-200 bg-slate-100 py-3 pl-10 pr-3 text-sm text-slate-500"
+                    className={`${inputClass} pl-10`}
                   />
                 </div>
-                <p className="mt-1 text-xs text-slate-400">
-                  Email change karne ke liye separate verification flow rakhein.
+
+                <p className="mt-2 text-xs text-zinc-500">
+                  Use the email verification section below
+                  to change your email.
                 </p>
               </div>
 
+              {/* Phone */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Phone Number
+                <label className={labelClass}>
+                  Phone number
                 </label>
+
                 <div className="relative">
                   <Phone
                     size={17}
-                    className="absolute left-3 top-3.5 text-slate-400"
+                    className="absolute left-3 top-3.5 text-amber-400"
                   />
+
                   <input
                     name="phone"
-                    value={editing ? form.phone : user.phone || ""}
-                    onChange={handleChange}
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        phone: e.target.value,
+                      })
+                    }
                     disabled={!editing}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:text-slate-600"
+                    required
+                    className={`${inputClass} pl-10`}
                     placeholder="Enter phone number"
                   />
                 </div>
               </div>
 
+              {/* Role */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Account Role
+                <label className={labelClass}>
+                  Account role
                 </label>
+
                 <div className="relative">
                   <ShieldCheck
                     size={17}
-                    className="absolute left-3 top-3.5 text-slate-400"
+                    className="absolute left-3 top-3.5 text-amber-400"
                   />
+
                   <input
-                    value={user.role || "customer"}
+                    value={user.role}
                     disabled
-                    className="w-full rounded-xl border border-slate-200 bg-slate-100 py-3 pl-10 pr-3 text-sm capitalize text-slate-500"
+                    className={`${inputClass} pl-10 capitalize`}
                   />
                 </div>
               </div>
 
+              {/* Member Since */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Member Since
+                <label className={labelClass}>
+                  Member since
                 </label>
+
                 <div className="relative">
                   <CalendarDays
                     size={17}
-                    className="absolute left-3 top-3.5 text-slate-400"
+                    className="absolute left-3 top-3.5 text-amber-400"
                   />
+
                   <input
                     value={
                       user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString(
-                            "en-IN",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            }
-                          )
+                        ? new Date(
+                            user.createdAt
+                          ).toLocaleDateString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
                         : "Not available"
                     }
                     disabled
-                    className="w-full rounded-xl border border-slate-200 bg-slate-100 py-3 pl-10 pr-3 text-sm text-slate-500"
+                    className={`${inputClass} pl-10`}
                   />
                 </div>
               </div>
             </div>
 
+            {/* Edit Buttons */}
             {editing && (
-              <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <div className="mt-6 flex justify-end gap-3">
+
                 <button
                   type="button"
                   onClick={() => {
                     setEditing(false);
+
                     setForm({
-                      name: user.name || "",
-                      phone: user.phone || "",
+                      name: user.name,
+                      phone: String(user.phone ?? ""),
                     });
-                    setError("");
+
+                    clearAlerts();
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                  className={secondaryButton}
                 >
                   <X size={16} />
                   Cancel
@@ -423,38 +639,185 @@ export default function UserProfile() {
 
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  disabled={isSavingProfile}
+                  className={primaryButton}
                 >
                   <Save size={16} />
-                  {saving ? "Saving..." : "Save Changes"}
+
+                  {isSavingProfile
+                    ? "Saving..."
+                    : "Save changes"}
                 </button>
               </div>
             )}
           </form>
         </section>
-
-        {/* Change password */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        ```jsx
+        {/* Change Email */}
+        <section className="rounded-3xl border border-white/10 bg-[#111111] p-5 sm:p-7">
           <div className="mb-6 flex items-center gap-3">
-            <div className="rounded-xl bg-violet-50 p-3 text-violet-600">
-              <LockKeyhole size={21} />
+            <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-amber-300">
+              <Mail size={21} />
             </div>
+
             <div>
-              <h2 className="font-bold text-slate-900">
-                Change Password
+              <h2 className="font-bold text-white">
+                Change email address
               </h2>
-              <p className="text-sm text-slate-500">
-                Apne account ko secure rakhein
+              <p className="mt-1 text-sm text-zinc-500">
+                Confirm your password, then verify the new email with an OTP.
               </p>
             </div>
           </div>
 
-          <form onSubmit={handlePasswordChange}>
+          {!otpSent ? (
+            <form
+              onSubmit={handleRequestEmailOtp}
+              className="grid gap-5 sm:grid-cols-2"
+            >
+              <div>
+                <label className={labelClass}>New email address</label>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={emailForm.newEmail}
+                  onChange={(e) =>
+                    setEmailForm({
+                      ...emailForm,
+                      newEmail: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Current password</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={emailForm.password}
+                  onChange={(e) =>
+                    setEmailForm({
+                      ...emailForm,
+                      password: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  placeholder="Enter current password"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <button
+                  type="submit"
+                  disabled={isRequestingOtp}
+                  className={primaryButton}
+                >
+                  <Mail size={16} />
+                  {isRequestingOtp
+                    ? "Sending OTP..."
+                    : "Send verification OTP"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form
+              onSubmit={handleVerifyEmailOtp}
+              className="max-w-xl space-y-5"
+            >
+              <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-zinc-300">
+                A 6-digit verification code was sent to{" "}
+                <span className="font-semibold text-amber-300">
+                  {emailForm.newEmail}
+                </span>
+                . Enter it below. The code expires in 5 minutes.
+              </div>
+
+              <div>
+                <label className={labelClass}>6-digit OTP</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  pattern="[0-9]{6}"
+                  required
+                  value={otp}
+                  onChange={(e) =>
+                    setOtp(
+                      e.target.value.replace(/\D/g, "").slice(0, 6)
+                    )
+                  }
+                  className={`${inputClass} max-w-xs text-center text-xl tracking-[0.45em]`}
+                  placeholder="000000"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  disabled={isVerifyingOtp}
+                  className={primaryButton}
+                >
+                  <CheckCircle2 size={16} />
+                  {isVerifyingOtp
+                    ? "Verifying..."
+                    : "Verify and update email"}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isRequestingOtp}
+                  onClick={handleRequestEmailOtp}
+                  className={secondaryButton}
+                >
+                  <RefreshCw size={16} />
+                  Resend OTP
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpSent(false);
+                    setOtp("");
+                    clearAlerts();
+                  }}
+                  className={secondaryButton}
+                >
+                  <X size={16} />
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+
+        {/* Change Password */}
+        <section className="rounded-3xl border border-white/10 bg-[#111111] p-5 sm:p-7">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-amber-300">
+              <LockKeyhole size={21} />
+            </div>
+
+            <div>
+              <h2 className="font-bold text-white">
+                Change password
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Choose a strong password with at least 8 characters.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleChangePassword}>
             <div className="grid gap-5 sm:grid-cols-3">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Current Password
+                <label className={labelClass}>
+                  Current password
                 </label>
                 <input
                   type="password"
@@ -467,15 +830,13 @@ export default function UserProfile() {
                       currentPassword: e.target.value,
                     })
                   }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className={inputClass}
                   placeholder="Current password"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  New Password
-                </label>
+                <label className={labelClass}>New password</label>
                 <input
                   type="password"
                   autoComplete="new-password"
@@ -488,14 +849,14 @@ export default function UserProfile() {
                       newPassword: e.target.value,
                     })
                   }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className={inputClass}
                   placeholder="At least 8 characters"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Confirm New Password
+                <label className={labelClass}>
+                  Confirm new password
                 </label>
                 <input
                   type="password"
@@ -509,24 +870,27 @@ export default function UserProfile() {
                       confirmPassword: e.target.value,
                     })
                   }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  placeholder="Confirm new password"
+                  className={inputClass}
+                  placeholder="Repeat new password"
                 />
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end">
+            <div className="mt-6 flex justify-end">
               <button
                 type="submit"
-                disabled={changingPassword}
-                className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
+                disabled={isChangingPassword}
+                className={primaryButton}
               >
-                {changingPassword ? "Updating..." : "Update Password"}
+                <KeyRound size={16} />
+                {isChangingPassword
+                  ? "Updating..."
+                  : "Update password"}
               </button>
             </div>
           </form>
         </section>
       </div>
-    </div>
+    </main>
   );
 }

@@ -70,6 +70,36 @@ export const userApi = createApi({
       invalidatesTags: ["TicketMessage"],
     }),
 
+
+    // Update name and phone
+    updateProfile: builder.mutation({
+      query: (body) => ({
+        url: "user/profile",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["UserProfile"],
+    }),
+
+    // Request email change OTP
+    updateEmail: builder.mutation({
+      query: (body) => ({
+        url: "user/profile/email/change-request",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    // Verify email OTP
+    verifyEmailOtp: builder.mutation({
+      query: (body) => ({
+        url: "user/profile/email/verify-otp",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["UserProfile"],
+    }),
+
     
   }),
 });
@@ -81,5 +111,7 @@ export const {
   useGetMyTicketsQuery,
   useGetTicketByIdQuery,
   useSendTicketMessageMutation,
-  useUserReplyToTicketMutation
+  useUserReplyToTicketMutation,
+  useUpdateEmailMutation,
+  useVerifyEmailOtpMutation
 } = userApi;
