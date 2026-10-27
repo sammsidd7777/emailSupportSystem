@@ -14,7 +14,7 @@ export const userApi = createApi({
   endpoints: (builder) => ({
     // Get logged-in user's profile
     getProfile: builder.query({
-      query: () => "/users/profile",
+      query: () => "/user/profile",
       providesTags: ["UserProfile"],
     }),
 
