@@ -65,12 +65,12 @@ const navGroups = [
       },
       {
         name: "Categories",
-        path: "/admin/categories",
+        // path: "/admin/categories",
         icon: FolderKanban,
       },
       {
         name: "Reports & Analytics",
-        path: "/reports",
+        // path: "/reports",
         icon: ChartNoAxesCombined,
       },
     ],
