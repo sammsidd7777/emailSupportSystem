@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import {
   UserRound,
@@ -14,8 +13,7 @@ import {
   CheckCircle2,
   RefreshCw,
   AlertCircle,
-  UserCircle,
-  Sparkles,
+  Crown,
 } from "lucide-react";
 
 import {
@@ -28,12 +26,7 @@ import {
 
 // Normalize different API response formats
 const normalizeUser = (payload) => {
-  const raw =
-    payload?.user ||
-    payload?.data?.user ||
-    payload?.data ||
-    payload ||
-    {};
+  const raw = payload?.user || payload?.data?.user || payload?.data || payload || {};
 
   return {
     id: raw._id || raw.id || "",
@@ -52,56 +45,62 @@ const getErrorMessage = (error, fallback) =>
   error?.message ||
   fallback;
 
+/* ---------- Design tokens: black + gold ---------- */
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 disabled:cursor-not-allowed disabled:opacity-60";
+  "w-full rounded-lg border border-[#d4af37]/15 bg-black px-4 py-3 text-sm text-[#f3ead2] placeholder:text-[#6f6652] outline-none transition focus:border-[#d4af37] focus:shadow-[0_0_0_3px_rgba(212,175,55,0.12)] disabled:cursor-not-allowed disabled:border-white/5 disabled:text-[#8d8570]";
 
-const labelClass = "mb-2 block text-sm font-medium text-zinc-300";
+const labelClass = "mb-2 block text-[13px] font-medium text-[#b8ab88]";
 
 const primaryButton =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50";
+  "bm-gold-bg inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f5e6a8] disabled:cursor-not-allowed disabled:opacity-50";
 
 const secondaryButton =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-amber-400/30 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-lg border border-[#d4af37]/30 bg-transparent px-5 py-2.5 text-sm font-semibold text-[#e9d9a6] transition hover:bg-[#d4af37]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50";
 
-const cardClass =
-  "rounded-3xl border border-white/10 bg-[#111111] p-5 shadow-xl shadow-black/10 sm:p-7";
+const panelClass =
+  "rounded-2xl border border-[#d4af37]/15 bg-[#0a0907] p-6 sm:p-8";
 
-function SectionHeading({ icon: Icon, title, description }) {
-  return (
-    <div className="mb-6 flex items-center gap-3">
-      <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-amber-300">
-        <Icon size={21} />
-      </div>
+const styles = `
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+.bm-root{font-family:'Manrope',system-ui,sans-serif}
+.bm-display{font-family:'Cormorant Garamond',Georgia,serif;letter-spacing:.01em}
+.bm-gold-bg{background:linear-gradient(135deg,#f5e6a8 0%,#d4af37 45%,#9a7420 100%)}
+.bm-gold-text{background:linear-gradient(135deg,#f9efc2,#d4af37 55%,#b58a24);-webkit-background-clip:text;background-clip:text;color:transparent}
+.bm-foil{background:linear-gradient(135deg,rgba(245,230,168,.9),rgba(212,175,55,.35) 40%,rgba(154,116,32,.8))}
+.bm-grain{background-image:radial-gradient(circle at 20% 0%,rgba(212,175,55,.18),transparent 55%),radial-gradient(circle at 100% 100%,rgba(212,175,55,.08),transparent 50%)}
+@keyframes bm-shine{from{transform:translateX(-120%)}to{transform:translateX(220%)}}
+.bm-shine{animation:bm-shine 1.6s ease-out .3s 1 both}
+@media (prefers-reduced-motion:reduce){.bm-shine{animation:none}}
+`;
 
-      <div>
-        <h2 className="font-bold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-zinc-500">{description}</p>
-      </div>
-    </div>
-  );
-}
-
-function FormField({
-  label,
-  icon: Icon,
-  className = "",
-  children,
-}) {
+function FormField({ label, icon: Icon, className = "", children }) {
   return (
     <div className={className}>
       <label className={labelClass}>{label}</label>
       <div className="relative">
         {Icon && (
-          <Icon
-            size={17}
-            className="absolute left-3 top-3.5 text-amber-400"
-          />
+          <Icon size={16} className="pointer-events-none absolute left-3.5 top-3.5 text-[#d4af37]" />
         )}
         {children}
       </div>
     </div>
   );
 }
+
+function PanelHeading({ title, description }) {
+  return (
+    <div className="mb-7 border-b border-[#d4af37]/10 pb-5">
+      <h2 className="bm-display text-2xl font-semibold text-[#f6eccb]">{title}</h2>
+      <p className="mt-1 text-sm text-[#8d8570]">{description}</p>
+    </div>
+  );
+}
+
+const TABS = [
+  { id: "profile", label: "Personal details", icon: UserRound },
+  { id: "email", label: "Email", icon: Mail },
+  { id: "security", label: "Password", icon: LockKeyhole },
+];
 
 export default function UserProfile() {
   const {
@@ -112,53 +111,31 @@ export default function UserProfile() {
     refetch,
   } = useGetProfileQuery();
 
-  const [updateProfile, { isLoading: isSavingProfile }] =
-    useUpdateProfileMutation();
+  const [updateProfile, { isLoading: isSavingProfile }] = useUpdateProfileMutation();
+  const [updateEmail, { isLoading: isRequestingOtp }] = useUpdateEmailMutation();
+  const [verifyEmailOtp, { isLoading: isVerifyingOtp }] = useVerifyEmailOtpMutation();
+  const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation();
 
-  const [updateEmail, { isLoading: isRequestingOtp }] =
-    useUpdateEmailMutation();
-
-  const [verifyEmailOtp, { isLoading: isVerifyingOtp }] =
-    useVerifyEmailOtpMutation();
-
-  const [changePassword, { isLoading: isChangingPassword }] =
-    useChangePasswordMutation();
-
+  const [tab, setTab] = useState("profile");
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-  });
-
-  const [emailForm, setEmailForm] = useState({
-    newEmail: "",
-    password: "",
-  });
-
+  const [form, setForm] = useState({ name: "", phone: "" });
+  const [emailForm, setEmailForm] = useState({ newEmail: "", password: "" });
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
 
-  const user = useMemo(
-    () => normalizeUser(profileResponse),
-    [profileResponse]
-  );
+  const user = useMemo(() => normalizeUser(profileResponse), [profileResponse]);
 
   useEffect(() => {
     if (!profileResponse) return;
-
-    setForm({
-      name: user.name,
-      phone: String(user.phone ?? ""),
-    });
+    setForm({ name: user.name, phone: String(user.phone ?? "") });
   }, [profileResponse, user.name, user.phone]);
 
   const initials = (user.name || "User")
@@ -174,9 +151,7 @@ export default function UserProfile() {
     setError("");
   };
 
-  const showError = (err, fallback) => {
-    setError(getErrorMessage(err, fallback));
-  };
+  const showError = (err, fallback) => setError(getErrorMessage(err, fallback));
 
   // Update profile details
   const handleUpdateProfile = async (event) => {
@@ -232,9 +207,7 @@ export default function UserProfile() {
 
       setOtpSent(true);
       setOtp("");
-      setMessage(
-        result?.message || "Verification OTP sent to your new email."
-      );
+      setMessage(result?.message || "Verification OTP sent to your new email.");
     } catch (err) {
       showError(err, "Could not send the verification code.");
     }
@@ -288,9 +261,7 @@ export default function UserProfile() {
       return;
     }
 
-    if (
-      passwordForm.currentPassword === passwordForm.newPassword
-    ) {
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
       setError("Your new password must differ from the current password.");
       return;
     }
@@ -301,12 +272,7 @@ export default function UserProfile() {
         newPassword: passwordForm.newPassword,
       }).unwrap();
 
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setMessage(result?.message || "Password changed successfully.");
     } catch (err) {
       showError(err, "Could not change your password.");
@@ -315,11 +281,8 @@ export default function UserProfile() {
 
   const formatDate = (date) => {
     if (!date) return "Not available";
-
     const parsed = new Date(date);
-
     if (Number.isNaN(parsed.getTime())) return "Not available";
-
     return parsed.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
@@ -327,11 +290,24 @@ export default function UserProfile() {
     });
   };
 
+  const startEditing = () => {
+    setForm({ name: user.name, phone: String(user.phone ?? "") });
+    setEditing(true);
+    clearAlerts();
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+    setForm({ name: user.name, phone: String(user.phone ?? "") });
+    clearAlerts();
+  };
+
   if (isProfileLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-[#090909] text-amber-300">
+      <div className="bm-root flex min-h-[60vh] items-center justify-center bg-black text-[#d4af37]">
+        <style>{styles}</style>
         <div className="flex items-center gap-3 text-sm">
-          <RefreshCw size={19} className="animate-spin" />
+          <RefreshCw size={18} className="animate-spin" />
           Loading your profile...
         </div>
       </div>
@@ -340,25 +316,17 @@ export default function UserProfile() {
 
   if (profileError && !profileResponse) {
     return (
-      <main className="min-h-screen bg-[#090909] px-4 py-10 text-zinc-100">
-        <div className="mx-auto max-w-xl rounded-2xl border border-red-400/20 bg-[#111111] p-6">
+      <main className="bm-root min-h-screen bg-black px-4 py-10 text-[#f3ead2]">
+        <style>{styles}</style>
+        <div className="mx-auto max-w-xl rounded-2xl border border-red-400/25 bg-[#0a0907] p-6">
           <div className="flex items-center gap-3 text-red-300">
             <AlertCircle size={22} />
-            <h2 className="text-lg font-bold">Could not load profile</h2>
+            <h2 className="bm-display text-2xl font-semibold">Could not load profile</h2>
           </div>
-
-          <p className="mt-3 text-sm text-zinc-400">
-            {getErrorMessage(
-              profileError,
-              "Please sign in and try again."
-            )}
+          <p className="mt-3 text-sm text-[#a69c80]">
+            {getErrorMessage(profileError, "Please sign in and try again.")}
           </p>
-
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className={`${primaryButton} mt-5`}
-          >
+          <button type="button" onClick={() => refetch()} className={`${primaryButton} mt-5`}>
             <RefreshCw size={16} />
             Try again
           </button>
@@ -368,38 +336,27 @@ export default function UserProfile() {
   }
 
   return (
-    <main className="min-h-screen bg-[#090909] px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <main className="bm-root text-[#f3ead2]">
+      <style>{styles}</style>
+
+      <div className="mx-auto max-w-6xl">
         {/* Page heading */}
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.28em] text-amber-400">
-              <Sparkles size={14} />
-              BitMax / Account
-            </p>
-
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              My Profile
-            </h1>
-
-            <p className="mt-2 text-sm text-zinc-400">
-              Manage your personal information and account security.
-            </p>
-          </div>
+        <header className="mb-8 flex flex-wrap items-end justify-between gap-3">
+        
 
           {isProfileFetching && (
-            <span className="flex items-center gap-2 text-xs text-amber-300">
+            <span className="flex items-center gap-2 text-xs text-[#d4af37]">
               <RefreshCw size={13} className="animate-spin" />
-              Refreshing profile...
+              Refreshing...
             </span>
           )}
         </header>
 
-        {/* Success message */}
+        {/* Alerts */}
         {message && (
           <div
             role="status"
-            className="flex items-start gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300"
+            className="mb-4 flex items-start gap-3 rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300"
           >
             <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
             <p>{message}</p>
@@ -414,11 +371,10 @@ export default function UserProfile() {
           </div>
         )}
 
-        {/* Error message */}
         {error && (
           <div
             role="alert"
-            className="flex items-start gap-3 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300"
+            className="mb-4 flex items-start gap-3 rounded-lg border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-300"
           >
             <AlertCircle size={18} className="mt-0.5 shrink-0" />
             <p>{error}</p>
@@ -433,384 +389,379 @@ export default function UserProfile() {
           </div>
         )}
 
-        {/* Profile header */}
-        <section className="overflow-hidden rounded-3xl border border-amber-400/15 bg-[#111111] shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
-          <div className="relative h-32 bg-gradient-to-r from-[#241900] via-[#8b650c] to-[#e8bd4b] sm:h-40">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-          </div>
+        <div className="grid gap-6 lg:grid-cols-[340px_1fr] lg:items-start">
+          {/* Membership card */}
+          <aside className="lg:sticky lg:top-6">
+            <div className="bm-foil rounded-3xl p-px">
+              <div className="relative overflow-hidden rounded-[23px] bg-gradient-to-br from-[#15110a] via-black to-[#0d0a04] p-7">
+                <div className="bm-shine pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-[#f5e6a8]/15 to-transparent" />
 
-          <div className="px-5 pb-6 sm:px-8">
-            <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex min-w-0 items-end gap-4">
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-4 border-[#111111] bg-[#1a160b] text-2xl font-black text-amber-300 shadow-lg sm:h-28 sm:w-28">
-                  {initials || <UserCircle size={40} />}
+                <div className="flex items-start justify-between">
+                  <span className="bm-display bm-gold-text text-2xl font-bold">BitMax</span>
+                  <Crown size={22} className="text-[#d4af37]" />
                 </div>
 
-                <div className="min-w-0 pb-1">
-                  <h2 className="truncate text-xl font-bold text-white sm:text-2xl">
-                    {user.name || "Your Name"}
-                  </h2>
+                <div className="mt-10 flex h-24 w-24 items-center justify-center rounded-full bm-foil p-[2px]">
+                  <div className="bm-display flex h-full w-full items-center justify-center rounded-full bg-black text-4xl font-bold text-[#f0d77a]">
+                    {initials}
+                  </div>
+                </div>
 
-                  <p className="mt-1 break-all text-sm text-zinc-400">
-                    {user.email || "Email not available"}
-                  </p>
+                <h2 className="bm-display mt-6 break-words text-3xl font-semibold leading-tight text-[#fbf3d6]">
+                  {user.name || "Your name"}
+                </h2>
+                <p className="mt-1 break-all text-sm text-[#a69c80]">
+                  {user.email || "Email not available"}
+                </p>
 
-                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-semibold capitalize text-amber-300">
-                    <ShieldCheck size={14} />
+                <div className="mt-8 flex items-end justify-between border-t border-[#d4af37]/20 pt-5">
+                  <div>
+                    <p className="text-xs text-[#8d8570]">Member since</p>
+                    <p className="mt-0.5 text-sm font-semibold text-[#f0d77a]">
+                      {formatDate(user.createdAt)}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d4af37]/40 px-3 py-1 text-xs font-semibold capitalize text-[#f0d77a]">
+                    <ShieldCheck size={13} />
                     {user.role}
                   </span>
                 </div>
               </div>
-
-              {!editing && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm({
-                      name: user.name,
-                      phone: String(user.phone ?? ""),
-                    });
-                    setEditing(true);
-                    clearAlerts();
-                  }}
-                  className={primaryButton}
-                >
-                  <Pencil size={16} />
-                  Edit profile
-                </button>
-              )}
             </div>
-          </div>
-        </section>
+          </aside>
 
-        {/* Personal information */}
-        <section className={cardClass}>
-          <SectionHeading
-            icon={UserRound}
-            title="Personal information"
-            description="Your basic account details"
-          />
+          {/* Content */}
+          <div className="min-w-0">
+            {/* Tabs */}
+            <nav
+              role="tablist"
+              aria-label="Account sections"
+              className="mb-5 flex gap-1 overflow-x-auto border-b border-[#d4af37]/15"
+            >
+              {TABS.map(({ id, label, icon: Icon }) => {
+                const active = tab === id;
+                return (
+                  <button
+                    key={id}
+                    role="tab"
+                    type="button"
+                    aria-selected={active}
+                    onClick={() => {
+                      setTab(id);
+                      clearAlerts();
+                    }}
+                    className={`-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d4af37] ${
+                      active
+                        ? "border-[#d4af37] text-[#f0d77a]"
+                        : "border-transparent text-[#8d8570] hover:text-[#e9d9a6]"
+                    }`}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                );
+              })}
+            </nav>
 
-          <form onSubmit={handleUpdateProfile}>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <FormField label="Full name" icon={UserRound}>
-                <input
-                  name="name"
-                  autoComplete="name"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm({ ...form, name: e.target.value })
-                  }
-                  disabled={!editing}
-                  required
-                  maxLength={100}
-                  className={`${inputClass} pl-10`}
-                  placeholder="Enter your name"
-                />
-              </FormField>
+            {/* Personal details */}
+            {tab === "profile" && (
+              <section className={panelClass}>
+                <div className="mb-7 flex flex-wrap items-start justify-between gap-4 border-b border-[#d4af37]/10 pb-5">
+                  <div>
+                    <h2 className="bm-display text-2xl font-semibold text-[#f6eccb]">
+                      Personal details
+                    </h2>
+                    <p className="mt-1 text-sm text-[#8d8570]">
+                      The name and phone number on your account.
+                    </p>
+                  </div>
 
-              <FormField label="Email address" icon={Mail}>
-                <input
-                  type="email"
-                  autoComplete="email"
-                  value={user.email}
-                  disabled
-                  className={`${inputClass} pl-10`}
-                />
-                <p className="mt-2 text-xs text-zinc-500">
-                  Change your email using the verification section below.
-                </p>
-              </FormField>
-
-              <FormField label="Phone number" icon={Phone}>
-                <input
-                  name="phone"
-                  type="tel"
-                  autoComplete="tel"
-                  value={form.phone}
-                  onChange={(e) =>
-                    setForm({ ...form, phone: e.target.value })
-                  }
-                  disabled={!editing}
-                  required
-                  maxLength={20}
-                  className={`${inputClass} pl-10`}
-                  placeholder="Enter phone number"
-                />
-              </FormField>
-
-              <FormField label="Account role" icon={ShieldCheck}>
-                <input
-                  value={user.role}
-                  disabled
-                  className={`${inputClass} pl-10 capitalize`}
-                />
-              </FormField>
-
-              <FormField label="Member since" icon={CalendarDays}>
-                <input
-                  value={formatDate(user.createdAt)}
-                  disabled
-                  className={`${inputClass} pl-10`}
-                />
-              </FormField>
-            </div>
-
-            {editing && (
-              <div className="mt-6 flex flex-wrap justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(false);
-                    setForm({
-                      name: user.name,
-                      phone: String(user.phone ?? ""),
-                    });
-                    clearAlerts();
-                  }}
-                  className={secondaryButton}
-                  disabled={isSavingProfile}
-                >
-                  <X size={16} />
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={isSavingProfile}
-                  className={primaryButton}
-                >
-                  {isSavingProfile ? (
-                    <RefreshCw size={16} className="animate-spin" />
-                  ) : (
-                    <Save size={16} />
+                  {!editing && (
+                    <button type="button" onClick={startEditing} className={primaryButton}>
+                      <Pencil size={16} />
+                      Edit profile
+                    </button>
                   )}
-                  {isSavingProfile ? "Saving..." : "Save changes"}
-                </button>
-              </div>
+                </div>
+
+                <form onSubmit={handleUpdateProfile}>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <FormField label="Full name" icon={UserRound}>
+                      <input
+                        name="name"
+                        autoComplete="name"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        disabled={!editing}
+                        required
+                        maxLength={100}
+                        className={`${inputClass} pl-10`}
+                        placeholder="Enter your name"
+                      />
+                    </FormField>
+
+                    <FormField label="Phone number" icon={Phone}>
+                      <input
+                        name="phone"
+                        type="tel"
+                        autoComplete="tel"
+                        value={form.phone}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        disabled={!editing}
+                        required
+                        maxLength={20}
+                        className={`${inputClass} pl-10`}
+                        placeholder="Enter phone number"
+                      />
+                    </FormField>
+
+                    <FormField label="Email address" icon={Mail}>
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        value={user.email}
+                        disabled
+                        className={`${inputClass} pl-10`}
+                      />
+                      <p className="mt-2 text-xs text-[#6f6652]">
+                        To change it, use the Email tab.
+                      </p>
+                    </FormField>
+
+                    <FormField label="Account role" icon={ShieldCheck}>
+                      <input
+                        value={user.role}
+                        disabled
+                        className={`${inputClass} pl-10 capitalize`}
+                      />
+                    </FormField>
+
+                    <FormField label="Member since" icon={CalendarDays}>
+                      <input
+                        value={formatDate(user.createdAt)}
+                        disabled
+                        className={`${inputClass} pl-10`}
+                      />
+                    </FormField>
+                  </div>
+
+                  {editing && (
+                    <div className="mt-8 flex flex-wrap justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={cancelEditing}
+                        className={secondaryButton}
+                        disabled={isSavingProfile}
+                      >
+                        <X size={16} />
+                        Cancel
+                      </button>
+
+                      <button type="submit" disabled={isSavingProfile} className={primaryButton}>
+                        {isSavingProfile ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <Save size={16} />
+                        )}
+                        {isSavingProfile ? "Saving..." : "Save changes"}
+                      </button>
+                    </div>
+                  )}
+                </form>
+              </section>
             )}
-          </form>
-        </section>
 
-        {/* Change email */}
-        <section className={cardClass}>
-          <SectionHeading
-            icon={Mail}
-            title="Change email address"
-            description="Verify your new email address using a one-time password."
-          />
-
-          {!otpSent ? (
-            <form
-              onSubmit={handleRequestEmailOtp}
-              className="grid gap-5 sm:grid-cols-2"
-            >
-              <FormField label="New email address">
-                <input
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={emailForm.newEmail}
-                  onChange={(e) =>
-                    setEmailForm({
-                      ...emailForm,
-                      newEmail: e.target.value,
-                    })
-                  }
-                  className={inputClass}
-                  placeholder="you@example.com"
+            {/* Change email */}
+            {tab === "email" && (
+              <section className={panelClass}>
+                <PanelHeading
+                  title="Change email address"
+                  description="We'll send a one-time password to your new email to confirm it."
                 />
-              </FormField>
 
-              <FormField label="Current password">
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={emailForm.password}
-                  onChange={(e) =>
-                    setEmailForm({
-                      ...emailForm,
-                      password: e.target.value,
-                    })
-                  }
-                  className={inputClass}
-                  placeholder="Confirm your password"
-                />
-              </FormField>
+                {!otpSent ? (
+                  <form onSubmit={handleRequestEmailOtp} className="grid gap-5 sm:grid-cols-2">
+                    <FormField label="New email address">
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={emailForm.newEmail}
+                        onChange={(e) =>
+                          setEmailForm({ ...emailForm, newEmail: e.target.value })
+                        }
+                        className={inputClass}
+                        placeholder="you@example.com"
+                      />
+                    </FormField>
 
-              <div className="sm:col-span-2">
-                <button
-                  type="submit"
-                  disabled={isRequestingOtp}
-                  className={primaryButton}
-                >
-                  {isRequestingOtp ? (
-                    <RefreshCw size={16} className="animate-spin" />
-                  ) : (
-                    <Mail size={16} />
-                  )}
-                  {isRequestingOtp ? "Sending OTP..." : "Send verification OTP"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form
-              onSubmit={handleVerifyEmailOtp}
-              className="max-w-xl space-y-5"
-            >
-              <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-zinc-300">
-                Enter the 6-digit verification code sent to{" "}
-                <span className="break-all font-semibold text-amber-300">
-                  {emailForm.newEmail}
-                </span>
-                .
-              </div>
+                    <FormField label="Current password">
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={emailForm.password}
+                        onChange={(e) =>
+                          setEmailForm({ ...emailForm, password: e.target.value })
+                        }
+                        className={inputClass}
+                        placeholder="Confirm your password"
+                      />
+                    </FormField>
 
-              <FormField label="6-digit OTP">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  pattern="[0-9]{6}"
-                  required
-                  value={otp}
-                  onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  className={`${inputClass} max-w-xs text-center text-xl tracking-[0.45em]`}
-                  placeholder="000000"
-                />
-              </FormField>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  disabled={isVerifyingOtp || otp.length !== 6}
-                  className={primaryButton}
-                >
-                  {isVerifyingOtp ? (
-                    <RefreshCw size={16} className="animate-spin" />
-                  ) : (
-                    <CheckCircle2 size={16} />
-                  )}
-                  {isVerifyingOtp ? "Verifying..." : "Verify and update email"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleRequestEmailOtp}
-                  disabled={isRequestingOtp}
-                  className={secondaryButton}
-                >
-                  <RefreshCw
-                    size={16}
-                    className={isRequestingOtp ? "animate-spin" : ""}
-                  />
-                  Resend OTP
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpSent(false);
-                    setOtp("");
-                    clearAlerts();
-                  }}
-                  className={secondaryButton}
-                >
-                  <X size={16} />
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </section>
-
-        {/* Change password */}
-        <section className={cardClass}>
-          <SectionHeading
-            icon={LockKeyhole}
-            title="Change password"
-            description="Use a strong password with at least 8 characters."
-          />
-
-          <form onSubmit={handleChangePassword}>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              <FormField label="Current password">
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={passwordForm.currentPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      currentPassword: e.target.value,
-                    })
-                  }
-                  className={inputClass}
-                  placeholder="Current password"
-                />
-              </FormField>
-
-              <FormField label="New password">
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  required
-                  value={passwordForm.newPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      newPassword: e.target.value,
-                    })
-                  }
-                  className={inputClass}
-                  placeholder="At least 8 characters"
-                />
-              </FormField>
-
-              <FormField label="Confirm new password">
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  required
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      confirmPassword: e.target.value,
-                    })
-                  }
-                  className={inputClass}
-                  placeholder="Repeat new password"
-                />
-              </FormField>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="submit"
-                disabled={isChangingPassword}
-                className={primaryButton}
-              >
-                {isChangingPassword ? (
-                  <RefreshCw size={16} className="animate-spin" />
+                    <div className="sm:col-span-2">
+                      <button type="submit" disabled={isRequestingOtp} className={primaryButton}>
+                        {isRequestingOtp ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <Mail size={16} />
+                        )}
+                        {isRequestingOtp ? "Sending OTP..." : "Send verification OTP"}
+                      </button>
+                    </div>
+                  </form>
                 ) : (
-                  <KeyRound size={16} />
-                )}
-                {isChangingPassword ? "Updating..." : "Update password"}
-              </button>
-            </div>
-          </form>
-        </section>
+                  <form onSubmit={handleVerifyEmailOtp} className="max-w-xl space-y-5">
+                    <div className="rounded-lg border border-[#d4af37]/25 bg-[#d4af37]/5 p-4 text-sm text-[#d9cba2]">
+                      Enter the 6-digit code sent to{" "}
+                      <span className="break-all font-semibold text-[#f0d77a]">
+                        {emailForm.newEmail}
+                      </span>
+                      .
+                    </div>
 
-        <footer className="pb-4 text-center text-xs text-zinc-600">
-          BitMax Support System · Keep your account information up to date.
+                    <FormField label="6-digit OTP">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        pattern="[0-9]{6}"
+                        required
+                        value={otp}
+                        onChange={(e) =>
+                          setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                        }
+                        className={`${inputClass} max-w-xs text-center text-xl tracking-[0.45em]`}
+                        placeholder="000000"
+                      />
+                    </FormField>
+
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="submit"
+                        disabled={isVerifyingOtp || otp.length !== 6}
+                        className={primaryButton}
+                      >
+                        {isVerifyingOtp ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <CheckCircle2 size={16} />
+                        )}
+                        {isVerifyingOtp ? "Verifying..." : "Verify and update email"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleRequestEmailOtp}
+                        disabled={isRequestingOtp}
+                        className={secondaryButton}
+                      >
+                        <RefreshCw size={16} className={isRequestingOtp ? "animate-spin" : ""} />
+                        Resend OTP
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpSent(false);
+                          setOtp("");
+                          clearAlerts();
+                        }}
+                        className={secondaryButton}
+                      >
+                        <X size={16} />
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </section>
+            )}
+
+            {/* Change password */}
+            {tab === "security" && (
+              <section className={panelClass}>
+                <PanelHeading
+                  title="Change password"
+                  description="Use at least 8 characters, and a password you don't use elsewhere."
+                />
+
+                <form onSubmit={handleChangePassword}>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <FormField label="Current password" className="sm:col-span-2">
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={passwordForm.currentPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
+                        }
+                        className={inputClass}
+                        placeholder="Current password"
+                      />
+                    </FormField>
+
+                    <FormField label="New password">
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                        value={passwordForm.newPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, newPassword: e.target.value })
+                        }
+                        className={inputClass}
+                        placeholder="At least 8 characters"
+                      />
+                    </FormField>
+
+                    <FormField label="Confirm new password">
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+                        }
+                        className={inputClass}
+                        placeholder="Repeat new password"
+                      />
+                    </FormField>
+                  </div>
+
+                  <div className="mt-8 flex justify-end">
+                    <button type="submit" disabled={isChangingPassword} className={primaryButton}>
+                      {isChangingPassword ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <KeyRound size={16} />
+                      )}
+                      {isChangingPassword ? "Updating..." : "Update password"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
+          </div>
+        </div>
+
+        <footer className="mt-10 pb-4 text-center text-xs text-[#6f6652]">
+          BitMax Support System. Keep your account information up to date.
         </footer>
       </div>
     </main>

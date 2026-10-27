@@ -14,9 +14,7 @@ import {
   LogOut,
   Menu,
   X,
-  Headset,
   ChevronRight,
-  Bell,
   Settings,
 } from "lucide-react";
 
@@ -30,26 +28,10 @@ import {
 } from "../services/RTK/authApi";
 
 const navItems = [
-  {
-    name: "Dashboard",
-    path: "/user/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Create Ticket",
-    path: "/user/create-ticket",
-    icon: Plus,
-  },
-  {
-    name: "My Tickets",
-    path: "/user/my-tickets",
-    icon: Ticket,
-  },
-  {
-    name: "My Profile",
-    path: "/user/profile",
-    icon: UserRound,
-  },
+  { name: "Dashboard", path: "/user/dashboard", icon: LayoutDashboard },
+  { name: "Create Ticket", path: "/user/create-ticket", icon: Plus },
+  { name: "My Tickets", path: "/user/my-tickets", icon: Ticket },
+  { name: "My Profile", path: "/user/profile", icon: UserRound },
 ];
 
 /* BitMax logo mark (inline SVG, no image file needed) */
@@ -129,7 +111,8 @@ const UserLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f3ec] text-slate-800">
+    // CHANGED: cream background -> black
+    <div className="min-h-screen bg-black text-[#f3ead2]">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <button
@@ -209,7 +192,7 @@ const UserLayout = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="relative flex-1 overflow-y-auto px-4 py-7">
+        <nav className="relative flex-1 overflow-y-auto px-4 py-7 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <p className="mb-3 px-3 text-xs font-medium text-white/35">
             Workspace
           </p>
@@ -324,9 +307,7 @@ const UserLayout = () => {
               <p className="max-w-40 truncate text-sm font-semibold text-white">
                 {userName}
               </p>
-              <p className="text-xs text-amber-200/60">
-                Customer
-              </p>
+              <p className="text-xs text-amber-200/60">Customer</p>
             </div>
 
             <button
@@ -340,8 +321,8 @@ const UserLayout = () => {
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-9">
+        {/* Page content: black bg + responsive spacing for mobile/tablet/desktop */}
+        <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
