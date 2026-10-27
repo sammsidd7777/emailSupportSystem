@@ -12,11 +12,7 @@ export const userApi = createApi({
   tagTypes: ["UserProfile", "UserTickets", "Ticket", "TicketMessage"],
 
   endpoints: (builder) => ({
-    // Get logged-in user's profile
-    getProfile: builder.query({
-      query: () => "/user/profile",
-      providesTags: ["UserProfile"],
-    }),
+   
 
     // Update name and phone
     updateProfile: builder.mutation({
@@ -26,6 +22,12 @@ export const userApi = createApi({
         body,
       }),
       invalidatesTags: ["UserProfile"],
+    }),
+
+ // Get logged-in user's profile
+    getProfile: builder.query({
+      query: () => "/user/profile",
+      providesTags: ["UserProfile"],
     }),
 
     // Request email change OTP
