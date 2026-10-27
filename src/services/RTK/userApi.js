@@ -26,7 +26,7 @@ export const userApi = createApi({
 
  // Get logged-in user's profile
     getProfile: builder.query({
-      query: () => "/user/profile",
+      query: () => "/users/profile",
       providesTags: ["UserProfile"],
     }),
 
