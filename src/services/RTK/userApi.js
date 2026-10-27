@@ -17,7 +17,7 @@ export const userApi = createApi({
     // Update name and phone
     updateProfile: builder.mutation({
       query: (body) => ({
-        url: "/user/profile",
+        url: "/users/profile",
         method: "POST",
         body,
       }),
@@ -33,7 +33,7 @@ export const userApi = createApi({
     // Request email change OTP
     updateEmail: builder.mutation({
       query: (body) => ({
-        url: "/user/profile/email/change-request",
+        url: "/users/profile/email/change-request",
         method: "POST",
         body,
       }),
@@ -42,7 +42,7 @@ export const userApi = createApi({
     // Verify email OTP
     verifyEmailOtp: builder.mutation({
       query: (body) => ({
-        url: "/user/profile/email/verify-otp",
+        url: "/users/profile/email/verify-otp",
         method: "POST",
         body,
       }),
@@ -53,7 +53,7 @@ export const userApi = createApi({
     // Confirm this URL matches your backend route.
     changePassword: builder.mutation({
       query: (body) => ({
-        url: "/user/profile/password/change",
+        url: "/users/profile/password/change",
         method: "POST",
         body,
       }),
@@ -102,7 +102,7 @@ export const userApi = createApi({
     // User replies to a ticket
     userReplyToTicket: builder.mutation({
       query: ({ ticketId, message }) => ({
-        url: `/user/${ticketId}/reply`,
+        url: `/users/${ticketId}/reply`,
         method: "POST",
         body: { message },
       }),
