@@ -48,78 +48,80 @@ export default function AgentTicketDetails() {
   const [updateTicketStatus, { isLoading: updatingStatus }] =
     useUpdateTicketStatusMutation();
 
+  // Support API response wrappers
   const ticket =
     data?.ticket ||
     data?.data?.ticket ||
     data?.data?.data?.ticket ||
-    data?.messages ||
-    data?.data?.messages ||
-    data?.data?.data ||
-    data?.data ||
     null;
 
-  const messages = Array.isArray(ticket?.messages)
-    ? ticket.messages
-    : [];
+  // Messages are nested in the TICKETMESSAGE document
+  const rawMessages = ticket?.Messages;
 
-  const currentStatus = String(ticket?.status || "open")
+  const messages = Array.isArray(rawMessages)
+    ? rawMessages
+    : Array.isArray(rawMessages?.Messages)
+      ? rawMessages.Messages
+      : [];
+
+  const currentStatus = String(
+    ticket?.Status || ticket?.status || "open"
+  )
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, "_");
 
-  const isClosed =
-    currentStatus === "resolved" ||
-    currentStatus === "closed";
+  const currentPriority =
+    ticket?.Priority || ticket?.priority || "low";
+
+  const isClosed = ["resolved", "closed"].includes(currentStatus);
+
+  const requester =
+    ticket?.RequesterEmail ||
+    ticket?.requesterEmail ||
+    ticket?.RequesterId?.Email ||
+    ticket?.RequesterId?.Name ||
+    ticket?.requesterId?.email ||
+    ticket?.requester?.email ||
+    "Customer";
 
   const showFeedback = (type, text) => {
     setFeedback({ type, text });
   };
 
   const handleReply = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const trimmedMessage = message.trim();
+  const trimmedMessage = message.trim();
 
-    if (!trimmedMessage) {
-      showFeedback("error", "Please enter a reply.");
-      return;
-    }
+  if (!trimmedMessage) {
+    showFeedback("error", "Please enter a reply.");
+    return;
+  }
 
-    if (isClosed) {
-      showFeedback(
-        "error",
-        "You cannot reply to a resolved or closed ticket."
-      );
-      return;
-    }
+  try {
+    await replyToTicket({
+      ticketId,
+      ticketNumber: ticket.TicketNumber,
+      message: trimmedMessage,
+    }).unwrap();
 
-    try {
-      await replyToTicket({
-        ticketId,
-        message: trimmedMessage,
-      }).unwrap();
-
-      setMessage("");
-      showFeedback("success", "Reply sent successfully.");
-
-      await refetch();
-    } catch (error) {
-      showFeedback(
-        "error",
-        error?.data?.message ||
-          error?.data?.error ||
-          "Failed to send reply."
-      );
-    }
-  };
+    setMessage("");
+    showFeedback("success", "Reply sent successfully.");
+    await refetch();
+  } catch (error) {
+    showFeedback(
+      "error",
+      error?.data?.message || "Failed to send reply."
+    );
+  }
+};
 
   const handleStatusUpdate = async (e) => {
     e.preventDefault();
 
     if (!newStatus || newStatus === currentStatus) {
-      showFeedback(
-        "error",
-        "Please select a different status."
-      );
+      showFeedback("error", "Please select a different status.");
       return;
     }
 
@@ -130,10 +132,7 @@ export default function AgentTicketDetails() {
       }).unwrap();
 
       setNewStatus("");
-      showFeedback(
-        "success",
-        "Ticket status updated successfully."
-      );
+      showFeedback("success", "Ticket status updated successfully.");
 
       await refetch();
     } catch (error) {
@@ -147,14 +146,16 @@ export default function AgentTicketDetails() {
   };
 
   const statusStyle = (status) => {
-    switch (String(status || "open").toLowerCase()) {
+    switch (
+      String(status || "open")
+        .toLowerCase()
+        .replace(/\s+/g, "_")
+    ) {
       case "resolved":
         return "bg-emerald-400/10 text-emerald-300 ring-emerald-400/30";
 
-      case "progress":
-      case "in progress":
       case "in_progress":
-      case "inprogress":
+      case "progress":
         return "bg-[#d4af37]/15 text-[#f5d77a] ring-[#d4af37]/40";
 
       case "closed":
@@ -164,6 +165,11 @@ export default function AgentTicketDetails() {
         return "bg-amber-400/10 text-amber-300 ring-amber-400/30";
     }
   };
+
+  const formatStatus = (status) =>
+    String(status || "open")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
   const formatDate = (date) => {
     if (!date) return "Date unavailable";
@@ -208,7 +214,7 @@ export default function AgentTicketDetails() {
     );
   }
 
-  if (isError || !ticket || !ticket._id) {
+  if (isError || !ticket?._id) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-[#050505] p-5">
         <div className="w-full max-w-md rounded-3xl border border-[#d4af37]/25 bg-neutral-950 p-8 text-center">
@@ -228,7 +234,7 @@ export default function AgentTicketDetails() {
             <button
               type="button"
               onClick={() => refetch()}
-              className="rounded-xl border border-[#d4af37]/40 px-4 py-2.5 text-sm font-semibold text-[#f5d77a] transition hover:bg-[#d4af37]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/60"
+              className="rounded-xl border border-[#d4af37]/40 px-4 py-2.5 text-sm font-semibold text-[#f5d77a] hover:bg-[#d4af37]/10"
             >
               Retry
             </button>
@@ -236,7 +242,7 @@ export default function AgentTicketDetails() {
             <button
               type="button"
               onClick={() => navigate("/agent/my-tickets")}
-              className="rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8892b] px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f5d77a]"
+              className="rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8892b] px-4 py-2.5 text-sm font-semibold text-black"
             >
               Back to Tickets
             </button>
@@ -246,52 +252,32 @@ export default function AgentTicketDetails() {
     );
   }
 
-  const requester =
-    ticket.requesterId?.name ||
-    ticket.requester?.name ||
-    ticket.requesterEmail ||
-    ticket.requesterId?.email ||
-    ticket.requester?.email ||
-    "Customer";
-
   return (
     <div className="min-h-screen min-w-0 bg-[#050505]">
-      {/* Top navigation */}
       <header className="sticky top-0 z-20 border-b border-[#d4af37]/20 bg-black/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-7">
           <button
             type="button"
             onClick={() => navigate("/agent/my-tickets")}
-            className="group inline-flex items-center gap-2.5 rounded-xl border border-[#d4af37]/30 bg-black px-4 py-2.5 text-sm font-semibold text-neutral-300 transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f5d77a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/60"
+            className="inline-flex items-center gap-2.5 rounded-xl border border-[#d4af37]/30 bg-black px-4 py-2.5 text-sm font-semibold text-neutral-300 hover:bg-[#d4af37]/10 hover:text-[#f5d77a]"
           >
-            <ArrowLeft
-              size={17}
-              className="transition-transform group-hover:-translate-x-0.5"
-            />
+            <ArrowLeft size={17} />
             <span className="hidden sm:inline">Back to My Tickets</span>
             <span className="sm:hidden">Back</span>
           </button>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden text-xs font-medium text-neutral-500 sm:inline">
-              Ticket workspace
-            </span>
-
-            <button
-              type="button"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8892b] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-[#d4af37]/10 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f5d77a] disabled:opacity-50"
-            >
-              <RefreshCw
-                size={16}
-                className={isFetching ? "animate-spin" : ""}
-              />
-              <span className="hidden sm:inline">
-                {isFetching ? "Refreshing..." : "Refresh"}
-              </span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8892b] px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50"
+          >
+            <RefreshCw
+              size={16}
+              className={isFetching ? "animate-spin" : ""}
+            />
+            <span>{isFetching ? "Refreshing..." : "Refresh"}</span>
+          </button>
         </div>
       </header>
 
@@ -299,46 +285,43 @@ export default function AgentTicketDetails() {
         {/* Ticket overview */}
         <section className="overflow-hidden rounded-3xl border border-[#d4af37]/30 border-t-[3px] border-t-[#d4af37] bg-gradient-to-br from-neutral-900 to-black">
           <div className="flex flex-col xl:flex-row">
-            {/* Ticket body */}
             <div className="min-w-0 flex-1 p-5 sm:p-8">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-xl bg-[#d4af37]/10 px-3.5 py-2 text-xs font-bold text-[#f5d77a] ring-1 ring-inset ring-[#d4af37]/40">
                   <Ticket size={15} />
-                  #{ticket.ticketNumber || ticket._id}
+                  #{ticket.TicketNumber || ticket._id}
                 </span>
 
                 <span
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ring-1 ring-inset ${statusStyle(ticket.status)}`}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${statusStyle(currentStatus)}`}
                 >
-                  <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current" />
-                  {ticket.status || "Open"}
+                  {formatStatus(currentStatus)}
                 </span>
 
                 <span
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ring-1 ring-inset ${priorityStyle(ticket.priority)}`}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${priorityStyle(currentPriority)}`}
                 >
-                  {ticket.priority || "Low"} Priority
+                  {formatStatus(currentPriority)} Priority
                 </span>
               </div>
 
               <h1 className="mt-6 break-words text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                {ticket.Subject || "Untitled ticket"}
+                {ticket.Subject || ticket.subject || "Untitled ticket"}
               </h1>
 
               <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-7 text-neutral-400 sm:text-base">
-                {ticket.Description || "No description provided."}
+                {ticket.Description ||
+                  ticket.description ||
+                  "No description provided."}
               </p>
 
               <div className="mt-7 grid gap-3 sm:grid-cols-2">
                 <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-[#d4af37]/15 bg-black p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#d4af37]/10 text-[#d4af37] ring-1 ring-[#d4af37]/30">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#d4af37]/10 text-[#d4af37]">
                     <CalendarDays size={18} />
                   </div>
-
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-neutral-500">
-                      Created on
-                    </p>
+                    <p className="text-xs text-neutral-500">Created on</p>
                     <p className="mt-1 break-words text-sm font-semibold text-neutral-200">
                       {formatDate(ticket.createdAt)}
                     </p>
@@ -346,14 +329,11 @@ export default function AgentTicketDetails() {
                 </div>
 
                 <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-[#d4af37]/15 bg-black p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#d4af37]/10 text-[#d4af37] ring-1 ring-[#d4af37]/30">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#d4af37]/10 text-[#d4af37]">
                     <UserRound size={18} />
                   </div>
-
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-neutral-500">
-                      Requested by
-                    </p>
+                    <p className="text-xs text-neutral-500">Requested by</p>
                     <p className="mt-1 break-words text-sm font-semibold text-neutral-200">
                       {requester}
                     </p>
@@ -362,26 +342,18 @@ export default function AgentTicketDetails() {
               </div>
             </div>
 
-            {/* Perforation */}
-            <div className="relative border-t-2 border-dashed border-[#d4af37]/30 xl:border-l-2 xl:border-t-0">
-              <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full border border-[#d4af37]/30 bg-[#050505]" />
-              <span className="absolute -right-3 -top-3 h-6 w-6 rounded-full border border-[#d4af37]/30 bg-[#050505] xl:-bottom-3 xl:-left-3 xl:right-auto xl:top-auto" />
-            </div>
-
-            {/* Ticket stub: status update */}
-            <aside className="flex w-full flex-col bg-[#d4af37]/[0.06] p-5 sm:p-8 xl:w-[340px] xl:shrink-0">
+            <aside className="flex w-full flex-col border-t-2 border-dashed border-[#d4af37]/30 bg-[#d4af37]/[0.06] p-5 sm:p-8 xl:w-[340px] xl:shrink-0 xl:border-l-2 xl:border-t-0">
               <p className="text-[11px] font-semibold text-[#d4af37]/80">
-                Admit one
+                Ticket reference
               </p>
               <p className="mt-1 break-all font-mono text-base font-bold text-[#f5d77a]">
-                {ticket.ticketNumber || ticket._id}
+                {ticket.TicketNumber || ticket._id}
               </p>
 
               <div className="mt-5 flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#f5d77a] via-[#d4af37] to-[#9a7420] text-black shadow-lg shadow-[#d4af37]/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#f5d77a] via-[#d4af37] to-[#9a7420] text-black">
                   <CheckCircle2 size={21} />
                 </div>
-
                 <div>
                   <h2 className="text-sm font-bold text-white">
                     Manage Status
@@ -392,10 +364,7 @@ export default function AgentTicketDetails() {
                 </div>
               </div>
 
-              <form
-                onSubmit={handleStatusUpdate}
-                className="mt-5 space-y-3"
-              >
+              <form onSubmit={handleStatusUpdate} className="mt-5 space-y-3">
                 <label
                   htmlFor="ticket-status"
                   className="block text-xs font-semibold text-neutral-300"
@@ -408,10 +377,10 @@ export default function AgentTicketDetails() {
                   value={newStatus || currentStatus}
                   onChange={(e) => setNewStatus(e.target.value)}
                   disabled={updatingStatus}
-                  className="w-full cursor-pointer rounded-xl border border-neutral-800 bg-black px-3.5 py-3 text-sm font-medium text-white outline-none transition focus:border-[#d4af37] focus:ring-4 focus:ring-[#d4af37]/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl border border-neutral-800 bg-black px-3.5 py-3 text-sm text-white outline-none focus:border-[#d4af37] disabled:opacity-60"
                 >
                   <option value="open">Open</option>
-                  <option value="progress">In Progress</option>
+                  <option value="in_progress">In Progress</option>
                   <option value="resolved">Resolved</option>
                   <option value="closed">Closed</option>
                 </select>
@@ -423,14 +392,13 @@ export default function AgentTicketDetails() {
                     !newStatus ||
                     newStatus === currentStatus
                   }
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8892b] px-4 py-3 text-sm font-semibold text-black shadow-lg shadow-[#d4af37]/10 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f5d77a] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-none disabled:bg-neutral-800 disabled:text-neutral-500 disabled:shadow-none"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8892b] px-4 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-none disabled:bg-neutral-800 disabled:text-neutral-500"
                 >
                   {updatingStatus ? (
                     <RefreshCw size={16} className="animate-spin" />
                   ) : (
                     <CheckCircle2 size={16} />
                   )}
-
                   {updatingStatus ? "Updating..." : "Update Status"}
                 </button>
               </form>
@@ -448,7 +416,7 @@ export default function AgentTicketDetails() {
           </div>
         </section>
 
-        {/* Feedback message */}
+        {/* Feedback */}
         {feedback.text && (
           <div
             role="status"
@@ -464,9 +432,7 @@ export default function AgentTicketDetails() {
               <AlertCircle size={20} className="shrink-0" />
             )}
 
-            <p className="flex-1 text-sm font-medium">
-              {feedback.text}
-            </p>
+            <p className="flex-1 text-sm font-medium">{feedback.text}</p>
 
             <button
               type="button"
@@ -479,14 +445,13 @@ export default function AgentTicketDetails() {
           </div>
         )}
 
-        {/* Conversation section */}
+        {/* Conversation */}
         <section className="overflow-hidden rounded-3xl border border-[#d4af37]/20 bg-neutral-950">
           <div className="flex flex-col justify-between gap-4 border-b border-[#d4af37]/15 px-5 py-5 sm:flex-row sm:items-center sm:px-7">
             <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#d4af37]/10 text-[#d4af37] ring-1 ring-[#d4af37]/30">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#d4af37]/10 text-[#d4af37]">
                 <MessageSquare size={22} />
               </div>
-
               <div>
                 <h2 className="text-lg font-bold text-white">
                   Conversation
@@ -504,29 +469,20 @@ export default function AgentTicketDetails() {
             </div>
           </div>
 
-          <div className="min-h-64 space-y-6 bg-black p-4 sm:p-7">
+          <div className="max-h-[650px] min-h-64 space-y-6 overflow-y-auto bg-black p-4 sm:p-7">
             {messages.length === 0 ? (
               <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-[#d4af37]/30 bg-neutral-950 px-5 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#d4af37]/10 text-[#d4af37]">
-                  <MessageSquare size={26} />
-                </div>
-
+                <MessageSquare size={26} className="text-[#d4af37]" />
                 <h3 className="mt-4 font-bold text-white">
                   No messages yet
                 </h3>
-
                 <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-500">
                   Start the conversation by sending a helpful reply to the customer.
                 </p>
               </div>
             ) : (
               messages.map((item, index) => {
-                const role = String(
-                  item.senderRole ||
-                    item.sender?.role ||
-                    item.senderId?.role ||
-                    ""
-                )
+                const role = String(item.SenderRole || "")
                   .toLowerCase()
                   .replace(/[\s_-]/g, "");
 
@@ -537,18 +493,17 @@ export default function AgentTicketDetails() {
                 ].includes(role);
 
                 const senderName =
-                  item.sender?.name ||
-                  item.senderId?.name ||
-                  item.sender?.email ||
-                  item.senderId?.email ||
+                  item.SenderEmail ||
+                  item.SenderId?.Email ||
+                  item.SenderId?.Name ||
                   (isAgent ? "Support Agent" : "Customer");
+
+                const body =
+                  item.Body || item.message || item.text || item.content || "";
 
                 return (
                   <div
-                    key={
-                      item._id ||
-                      `${item.createdAt || "message"}-${index}`
-                    }
+                    key={item._id || `${item.createdAt || "message"}-${index}`}
                     className={`flex items-end gap-3 ${
                       isAgent ? "justify-end" : "justify-start"
                     }`}
@@ -560,9 +515,9 @@ export default function AgentTicketDetails() {
                     )}
 
                     <div
-                      className={`min-w-0 max-w-[90%] sm:max-w-[75%] ${
+                      className={`flex min-w-0 max-w-[90%] flex-col sm:max-w-[75%] ${
                         isAgent ? "items-end" : "items-start"
-                      } flex flex-col`}
+                      }`}
                     >
                       <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
                         <span className="text-xs font-bold text-neutral-200">
@@ -577,15 +532,12 @@ export default function AgentTicketDetails() {
                       <div
                         className={`rounded-2xl px-4 py-3.5 ${
                           isAgent
-                            ? "rounded-br-md bg-gradient-to-br from-[#e6c35c] to-[#b8892b] text-black shadow-lg shadow-[#d4af37]/10"
+                            ? "rounded-br-md bg-gradient-to-br from-[#e6c35c] to-[#b8892b] text-black"
                             : "rounded-bl-md border border-neutral-800 bg-neutral-900 text-neutral-200"
                         }`}
                       >
                         <p className="whitespace-pre-wrap break-words text-sm leading-6">
-                          {item.message ||
-                            item.text ||
-                            item.content ||
-                            ""}
+                          {body}
                         </p>
                       </div>
                     </div>
@@ -605,13 +557,10 @@ export default function AgentTicketDetails() {
           <div className="border-t border-[#d4af37]/20 bg-neutral-950 p-4 sm:p-7">
             {isClosed ? (
               <div className="flex items-start gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5 text-amber-200">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black text-amber-300">
-                  <AlertCircle size={20} />
-                </div>
-
+                <AlertCircle size={20} />
                 <div>
                   <p className="font-bold">
-                    This ticket is {currentStatus}.
+                    This ticket is {formatStatus(currentStatus)}.
                   </p>
                   <p className="mt-1 text-sm leading-6 text-amber-300/80">
                     Replies are disabled for resolved or closed tickets.
@@ -624,7 +573,6 @@ export default function AgentTicketDetails() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d4af37]/10 text-[#d4af37]">
                     <Headphones size={19} />
                   </div>
-
                   <div>
                     <label
                       htmlFor="agent-reply"
@@ -645,25 +593,23 @@ export default function AgentTicketDetails() {
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Type your message to the customer..."
                   disabled={sending}
-                  className="w-full resize-y rounded-2xl border border-neutral-800 bg-black p-4 text-sm leading-6 text-white outline-none transition placeholder:text-neutral-600 focus:border-[#d4af37] focus:ring-4 focus:ring-[#d4af37]/15 disabled:opacity-60"
+                  className="w-full resize-y rounded-2xl border border-neutral-800 bg-black p-4 text-sm leading-6 text-white outline-none placeholder:text-neutral-600 focus:border-[#d4af37] disabled:opacity-60"
                 />
 
                 <div className="mt-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <p className="text-xs leading-5 text-neutral-500">
                     Be clear, professional and helpful.
                   </p>
-
                   <button
                     type="submit"
                     disabled={sending || !message.trim()}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8892b] px-5 py-3 text-sm font-semibold text-black shadow-lg shadow-[#d4af37]/10 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f5d77a] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-none disabled:bg-neutral-800 disabled:text-neutral-500 disabled:shadow-none"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8892b] px-5 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-none disabled:bg-neutral-800 disabled:text-neutral-500"
                   >
                     {sending ? (
                       <RefreshCw size={17} className="animate-spin" />
                     ) : (
                       <Send size={17} />
                     )}
-
                     {sending ? "Sending reply..." : "Send Reply"}
                   </button>
                 </div>

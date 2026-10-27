@@ -121,10 +121,12 @@ export default function UserProfile() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({ name: "", phone: "" });
+  const [form, setForm] = useState({ name: "", phone: "", password: "" });
   const [emailForm, setEmailForm] = useState({ newEmail: "", password: "" });
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [modalError, setModalError] = useState("");
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -135,7 +137,7 @@ export default function UserProfile() {
 
   useEffect(() => {
     if (!profileResponse) return;
-    setForm({ name: user.name, phone: String(user.phone ?? "") });
+    setForm({ name: user.name, phone: String(user.phone ?? ""), password: "" });
   }, [profileResponse, user.name, user.phone]);
 
   const initials = (user.name || "User")
@@ -153,18 +155,40 @@ export default function UserProfile() {
 
   const showError = (err, fallback) => setError(getErrorMessage(err, fallback));
 
-  // Update profile details
-  const handleUpdateProfile = async (event) => {
+  // Step 1: validate name/phone, then ask for the password in a popup
+  const handleUpdateProfile = (event) => {
     event.preventDefault();
     clearAlerts();
 
-    const cleanName = form.name.trim();
-    const cleanPhone = form.phone.trim();
-
-    if (!cleanName || !cleanPhone) {
+    if (!form.name.trim() || !form.phone.trim()) {
       setError("Please enter your name and phone number.");
       return;
     }
+
+    setModalError("");
+    setForm((f) => ({ ...f, password: "" }));
+    setShowPasswordModal(true);
+  };
+
+  const closePasswordModal = () => {
+    if (isSavingProfile) return;
+    setShowPasswordModal(false);
+    setModalError("");
+    setForm((f) => ({ ...f, password: "" }));
+  };
+
+  // Step 2: send name + phone + password to the backend
+  const handleConfirmSave = async (event) => {
+    event.preventDefault();
+    setModalError("");
+
+    if (!form.password) {
+      setModalError("Enter your password to continue.");
+      return;
+    }
+
+    const cleanName = form.name.trim();
+    const cleanPhone = form.phone.trim();
 
     try {
       const result = await updateProfile({
@@ -172,13 +196,16 @@ export default function UserProfile() {
         phone: cleanPhone,
         Name: cleanName,
         Phone: cleanPhone,
+        password: form.password,
       }).unwrap();
 
+      setShowPasswordModal(false);
+      setForm((f) => ({ ...f, password: "" }));
       setMessage(result?.message || "Profile updated successfully.");
       setEditing(false);
       await refetch();
     } catch (err) {
-      showError(err, "Could not update your profile.");
+      setModalError(getErrorMessage(err, "Could not update your profile."));
     }
   };
 
@@ -291,14 +318,14 @@ export default function UserProfile() {
   };
 
   const startEditing = () => {
-    setForm({ name: user.name, phone: String(user.phone ?? "") });
+    setForm({ name: user.name, phone: String(user.phone ?? ""), password: "" });
     setEditing(true);
     clearAlerts();
   };
 
   const cancelEditing = () => {
     setEditing(false);
-    setForm({ name: user.name, phone: String(user.phone ?? "") });
+    setForm({ name: user.name, phone: String(user.phone ?? ""), password: "" });
     clearAlerts();
   };
 
@@ -339,11 +366,93 @@ export default function UserProfile() {
     <main className="bm-root text-[#f3ead2]">
       <style>{styles}</style>
 
+      {showPasswordModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onMouseDown={(e) => e.target === e.currentTarget && closePasswordModal()}
+          onKeyDown={(e) => e.key === "Escape" && closePasswordModal()}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pw-modal-title"
+            onSubmit={handleConfirmSave}
+            className="w-full max-w-md rounded-2xl border border-[#d4af37]/30 bg-[#0a0907] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.8)] sm:p-7"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg border border-[#d4af37]/30 bg-[#d4af37]/10 p-2.5 text-[#d4af37]">
+                  <LockKeyhole size={20} />
+                </div>
+                <div>
+                  <h3 id="pw-modal-title" className="bm-display text-2xl font-semibold text-[#f6eccb]">
+                    Confirm your password
+                  </h3>
+                  <p className="mt-0.5 text-sm text-[#8d8570]">
+                    Enter your password to save these changes.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={closePasswordModal}
+                aria-label="Close"
+                className="rounded-lg p-1.5 text-[#8d8570] hover:bg-white/5 hover:text-[#f0d77a]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {modalError && (
+              <div
+                role="alert"
+                className="mt-5 flex items-start gap-2 rounded-lg border border-red-400/25 bg-red-400/10 px-3 py-2.5 text-sm text-red-300"
+              >
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                <p>{modalError}</p>
+              </div>
+            )}
+
+            <div className="mt-5">
+              <FormField label="Password" icon={LockKeyhole}>
+                <input
+                  autoFocus
+                  type="password"
+                  autoComplete="current-password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className={`${inputClass} pl-10`}
+                  placeholder="Enter your password"
+                />
+              </FormField>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closePasswordModal}
+                disabled={isSavingProfile}
+                className={secondaryButton}
+              >
+                Cancel
+              </button>
+              <button type="submit" disabled={isSavingProfile} className={primaryButton}>
+                {isSavingProfile ? (
+                  <RefreshCw size={16} className="animate-spin" />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
+                {isSavingProfile ? "Saving..." : "Proceed"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="mx-auto max-w-6xl">
         {/* Page heading */}
         <header className="mb-8 flex flex-wrap items-end justify-between gap-3">
-        
-
           {isProfileFetching && (
             <span className="flex items-center gap-2 text-xs text-[#d4af37]">
               <RefreshCw size={13} className="animate-spin" />

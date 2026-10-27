@@ -35,9 +35,9 @@ export default function MyAssignedTickets() {
       const q = search.toLowerCase();
 
       const matchesSearch =
-        (ticket.subject || "").toLowerCase().includes(q) ||
-        (ticket.ticketNumber || "").toLowerCase().includes(q) ||
-        (ticket.description || "").toLowerCase().includes(q);
+        (ticket.Subject || "").toLowerCase().includes(q) ||
+        (ticket.TicketNumber || "").toLowerCase().includes(q) ||
+        (ticket.Description || "").toLowerCase().includes(q);
 
       const matchesStatus =
         status === "all" ||
@@ -51,7 +51,7 @@ export default function MyAssignedTickets() {
     switch ((value || "open").toLowerCase()) {
       case "resolved":
         return "border border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
-      case "in progress":
+      case "in_progress":
         return "border border-[#d4af37]/40 bg-[#d4af37]/15 text-[#f5d77a]";
       case "closed":
         return "border border-neutral-600 bg-neutral-800 text-neutral-400";
@@ -153,7 +153,7 @@ export default function MyAssignedTickets() {
             >
               <option value="all">All statuses</option>
               <option value="open">Open</option>
-              <option value="in progress">In Progress</option>
+              <option value="in_progress">In Progress</option>
               <option value="resolved">Resolved</option>
               <option value="closed">Closed</option>
             </select>

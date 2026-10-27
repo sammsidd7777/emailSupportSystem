@@ -5,35 +5,33 @@ export const userApi = createApi({
   reducerPath: "userApi",
 
   baseQuery: fetchBaseQuery({
-    baseUrl: "https://email-support-system-spi.vercel.app/api",
+    baseUrl:  "https://email-support-system-spi.vercel.app/api",
     credentials: "include",
   }),
 
   tagTypes: ["UserProfile", "UserTickets", "Ticket", "TicketMessage"],
 
   endpoints: (builder) => ({
-   
+    // Get logged-in user's profile
+    getProfile: builder.query({
+      query: () => "/user/profile",
+      providesTags: ["UserProfile"],
+    }),
 
     // Update name and phone
     updateProfile: builder.mutation({
       query: (body) => ({
-        url: "/users/profile",
+        url: "/user/profile",
         method: "POST",
         body,
       }),
       invalidatesTags: ["UserProfile"],
     }),
 
- // Get logged-in user's profile
-    getProfile: builder.query({
-      query: () => "/users/profile",
-      providesTags: ["UserProfile"],
-    }),
-
     // Request email change OTP
     updateEmail: builder.mutation({
       query: (body) => ({
-        url: "/users/profile/email/change-request",
+        url: "/user/profile/email/change-request",
         method: "POST",
         body,
       }),
@@ -42,7 +40,7 @@ export const userApi = createApi({
     // Verify email OTP
     verifyEmailOtp: builder.mutation({
       query: (body) => ({
-        url: "/users/profile/email/verify-otp",
+        url: "/user/profile/email/verify-otp",
         method: "POST",
         body,
       }),
@@ -53,8 +51,8 @@ export const userApi = createApi({
     // Confirm this URL matches your backend route.
     changePassword: builder.mutation({
       query: (body) => ({
-        url: "/users/profile/password/change",
-        method: "POST",
+        url: "/user/profile/password/change",
+        method: "PATCH",
         body,
       }),
     }),
@@ -102,7 +100,7 @@ export const userApi = createApi({
     // User replies to a ticket
     userReplyToTicket: builder.mutation({
       query: ({ ticketId, message }) => ({
-        url: `/users/${ticketId}/reply`,
+        url: `/user/${ticketId}/reply`,
         method: "POST",
         body: { message },
       }),

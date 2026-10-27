@@ -44,14 +44,14 @@ const AgentLayout = () => {
     },
     {
       name: "My Profile",
-      path: "/agent/profile",
+      // path: "/agent/profile",
       icon: UserRound,
       section: "Account",
       soon: true,
     },
     {
       name: "Settings",
-      path: "/agent/settings",
+      // path: "/agent/settings",
       icon: Settings,
       section: "Account",
       soon: true,

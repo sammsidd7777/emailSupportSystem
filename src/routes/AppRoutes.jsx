@@ -45,7 +45,7 @@ const AppRoutes = () => {
     <Routes>
       {/* ================= PUBLIC ROUTES ================= */}
 
-      <Route path="/" element={<Auth />} />
+      <Route path="/" element={<Home />} />
 
       {/* All authentication sections */}
       <Route path="/auth" element={<Auth />} />
