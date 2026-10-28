@@ -432,6 +432,13 @@ export default function UnassignedTickets() {
               Clear Search
             </button>
           )}
+          <button
+  type="button"
+  onClick={() => toast.success("Toast is working!")}
+  className="rounded-lg bg-yellow-400 px-4 py-2 font-semibold text-black"
+>
+  Test Toast
+</button>
         </div>
 
         {/* Ticket List */}

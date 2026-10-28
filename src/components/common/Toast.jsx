@@ -11,44 +11,44 @@ import {
 const toastStyles = {
   success: {
     icon: CheckCircle2,
-    color: "border-emerald-200 bg-white text-emerald-700",
-    iconColor: "text-emerald-600",
-    progress: "bg-emerald-500",
+    border: "border-emerald-500/30",
+    iconColor: "text-emerald-400",
+    progress: "bg-emerald-400",
+    title: "Success",
   },
   error: {
     icon: XCircle,
-    color: "border-red-200 bg-white text-red-700",
-    iconColor: "text-red-600",
-    progress: "bg-red-500",
+    border: "border-red-500/30",
+    iconColor: "text-red-400",
+    progress: "bg-red-400",
+    title: "Error",
   },
   warning: {
     icon: AlertTriangle,
-    color: "border-amber-200 bg-white text-amber-700",
-    iconColor: "text-amber-600",
-    progress: "bg-amber-500",
+    border: "border-amber-500/30",
+    iconColor: "text-amber-400",
+    progress: "bg-amber-400",
+    title: "Warning",
   },
   info: {
     icon: Info,
-    color: "border-blue-200 bg-white text-blue-700",
-    iconColor: "text-blue-600",
-    progress: "bg-blue-500",
+    border: "border-blue-500/30",
+    iconColor: "text-blue-400",
+    progress: "bg-blue-400",
+    title: "Information",
   },
 };
 
-export default function Toast({
-  toast,
-  onClose,
-  duration = 3500,
-}) {
+export default function Toast({ toast, onClose }) {
   useEffect(() => {
-    if (!toast) return;
+    if (!toast?.id) return;
 
     const timer = setTimeout(() => {
       onClose?.(toast.id);
-    }, toast.duration ?? duration);
+    }, toast.duration ?? 3500);
 
     return () => clearTimeout(timer);
-  }, [toast, duration, onClose]);
+  }, [toast?.id, toast?.duration, onClose]);
 
   if (!toast) return null;
 
@@ -58,7 +58,7 @@ export default function Toast({
   return (
     <div
       role={toast.type === "error" ? "alert" : "status"}
-      className={`pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-2xl border p-4 shadow-xl ${style.color}`}
+      className={`pointer-events-auto relative w-full overflow-hidden rounded-2xl border ${style.border} bg-[#171717] p-4 text-white shadow-2xl shadow-black/40 animate-in slide-in-from-right-5 fade-in duration-200`}
     >
       <div className="flex items-start gap-3">
         <Icon
@@ -67,20 +67,19 @@ export default function Toast({
         />
 
         <div className="min-w-0 flex-1">
-          {toast.title && (
-            <h3 className="text-sm font-bold">
-              {toast.title}
-            </h3>
-          )}
+          <h3 className="text-sm font-semibold">
+            {toast.title || style.title}
+          </h3>
 
-          <p className="mt-1 break-words text-sm text-slate-600">
+          <p className="mt-1 break-words text-sm leading-5 text-gray-300">
             {toast.message}
           </p>
 
           {toast.action && (
             <button
+              type="button"
               onClick={toast.action.onClick}
-              className="mt-2 text-sm font-bold underline underline-offset-2"
+              className="mt-2 text-sm font-semibold underline underline-offset-2"
             >
               {toast.action.label}
             </button>
@@ -91,15 +90,20 @@ export default function Toast({
           type="button"
           onClick={() => onClose?.(toast.id)}
           aria-label="Close notification"
-          className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          className="shrink-0 rounded-lg p-1 text-gray-400 transition hover:bg-white/10 hover:text-white"
         >
           <X size={17} />
         </button>
       </div>
 
-      <div
-        className={`absolute bottom-0 left-0 h-1 w-full ${style.progress}`}
-      />
+      <div className="absolute bottom-0 left-0 h-1 w-full bg-white/5">
+        <div
+          className={`h-full w-full ${style.progress}`}
+          style={{
+            animation: `toast-progress ${toast.duration ?? 3500}ms linear forwards`,
+          }}
+        />
+      </div>
     </div>
   );
 }

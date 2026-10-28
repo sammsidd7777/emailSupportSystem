@@ -61,13 +61,15 @@ export function ToastProvider({ children }) {
       {children}
 
       <div className="pointer-events-none fixed right-4 top-4 z-[9999] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3">
-        {toasts.map((item) => (
-          <Toast
-            key={item.id}
-            toast={item}
-            onClose={removeToast}
-          />
-        ))}
+       <div className="pointer-events-none fixed right-4 top-4 z-[99999] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3">
+  {toasts.map((item) => (
+    <Toast
+      key={item.id}
+      toast={item}
+      onClose={removeToast}
+    />
+  ))}
+</div>
       </div>
     </ToastContext.Provider>
   );
