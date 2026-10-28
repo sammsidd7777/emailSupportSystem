@@ -1,613 +1,611 @@
-
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
+  UserRoundPlus,
   RefreshCw,
-  Headset,
-  UserCheck,
-  Clock,
+  Ticket,
   AlertCircle,
   CheckCircle2,
-  ChevronRight,
-  Ticket,
-  UserRound,
 } from "lucide-react";
 
-
-
-
-import { useToast } from "../../components/common/ToastProvider";
 import { useUnassignTicketListQuery } from "../../services/RTK/ticketApi";
-import { useAssignTicketMutation, useGetAgentListQuery } from "../../services/RTK/adminApi";
-
-const getErrorMessage = (err, fallback) =>
-  err?.data?.message ||
-  err?.data?.error ||
-  err?.error ||
-  err?.message ||
-  fallback;
-
-const getTickets = (response) => {
-  const result =
-    response?.unAssinTicket ??
-    response?.data?.unAssinTicket ??
-    response?.tickets ??
-    response?.data?.tickets ??
-    response?.data ??
-    response;
-
-  return Array.isArray(result) ? result : [];
-};
-
-const getAgents = (response) => {
-  const result =
-    response?.agents ??
-    response?.data?.agents ??
-    response?.data ??
-    response;
-
-  return Array.isArray(result) ? result : [];
-};
-
-const getTicketId = (ticket) =>
-  ticket?._id || ticket?.id || ticket?.TicketId;
-
-const getTicketNumber = (ticket) =>
-  ticket?.TicketNumber ||
-  ticket?.ticketNumber ||
-  ticket?.ticketId ||
-  getTicketId(ticket);
-
-const getSubject = (ticket) =>
-  ticket?.Subject ||
-  ticket?.subject ||
-  ticket?.Title ||
-  ticket?.title ||
-  "No subject provided";
-
-const getDescription = (ticket) =>
-  ticket?.Description ||
-  ticket?.description ||
-  "No description available";
-
-const getRequester = (ticket) =>
-  ticket?.Requester?.Name ||
-  ticket?.requester?.name ||
-  ticket?.User?.Name ||
-  ticket?.user?.name ||
-  ticket?.Name ||
-  ticket?.name ||
-  ticket?.Email ||
-  ticket?.email ||
-  "Unknown requester";
-
-const getPriority = (ticket) =>
-  ticket?.Priority || ticket?.priority || "Normal";
-
-const getCategory = (ticket) =>
-  ticket?.Category?.Name ||
-  ticket?.category?.name ||
-  ticket?.Category ||
-  ticket?.category ||
-  "General";
-
-const getCreatedDate = (ticket) => {
-  const value =
-    ticket?.CreatedAt ||
-    ticket?.createdAt ||
-    ticket?.created_at;
-
-  if (!value) return "Date unavailable";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Date unavailable";
-  }
-
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
-
-const getAgentId = (agent) => agent?._id || agent?.id;
-
-const getAgentName = (agent) =>
-  agent?.Name ||
-  agent?.name ||
-  agent?.FullName ||
-  agent?.fullName ||
-  agent?.Email ||
-  agent?.email ||
-  "Support Agent";
-
-const priorityClass = (priority) => {
-  const value = String(priority).toLowerCase();
-
-  if (value === "urgent" || value === "critical") {
-    return "border-red-500/30 bg-red-500/10 text-red-400";
-  }
-
-  if (value === "high") {
-    return "border-orange-500/30 bg-orange-500/10 text-orange-400";
-  }
-
-  if (value === "low") {
-    return "border-blue-500/30 bg-blue-500/10 text-blue-400";
-  }
-
-  return "border-yellow-500/30 bg-yellow-500/10 text-yellow-400";
-};
+import {
+  useAssignTicketMutation,
+  useGetAgentListQuery,
+} from "../../services/RTK/adminApi";
 
 export default function UnassignedTickets() {
   const navigate = useNavigate();
-  const { toast } = useToast();
 
-  const [search, setSearch] = useState("");
+  // UI states
   const [selectedAgents, setSelectedAgents] = useState({});
   const [assigningId, setAssigningId] = useState(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [search, setSearch] = useState("");
+  const [priority, setPriority] = useState("all");
 
+  // Ticket list API
   const {
     data: ticketData,
-    isLoading: ticketsLoading,
-    isFetching: ticketsFetching,
-    isError: ticketsError,
+    isLoading: loadingTickets,
+    isFetching,
+    isError,
+    error: queryError,
     refetch: refetchTickets,
   } = useUnassignTicketListQuery();
 
+  // Support agents API
   const {
     data: agentData,
-    isLoading: agentsLoading,
-    isFetching: agentsFetching,
-    isError: agentsError,
+    isLoading: loadingAgents,
+    isFetching: fetchingAgents,
+    isError: agentError,
+    error: agentQueryError,
     refetch: refetchAgents,
   } = useGetAgentListQuery();
 
+  // Assign ticket mutation
   const [assignTicket] = useAssignTicketMutation();
 
-  const tickets = useMemo(
-    () => getTickets(ticketData),
-    [ticketData]
-  );
+  // Normalize ticket response
+  const tickets = Array.isArray(ticketData?.unAssinTicket)
+    ? ticketData.unAssinTicket
+    : Array.isArray(ticketData?.data?.unAssinTicket)
+      ? ticketData.data.unAssinTicket
+      : Array.isArray(ticketData?.tickets)
+        ? ticketData.tickets
+        : Array.isArray(ticketData?.data?.tickets)
+          ? ticketData.data.tickets
+          : Array.isArray(ticketData?.data)
+            ? ticketData.data
+            : Array.isArray(ticketData)
+              ? ticketData
+              : [];
 
-  const agents = useMemo(
-    () => getAgents(agentData),
-    [agentData]
-  );
+  // Normalize agent response
+  const agents = Array.isArray(agentData?.agents)
+    ? agentData.agents
+    : Array.isArray(agentData?.data?.agents)
+      ? agentData.data.agents
+      : Array.isArray(agentData?.data)
+        ? agentData.data
+        : Array.isArray(agentData)
+          ? agentData
+          : [];
 
-  const filteredTickets = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  // Refresh tickets and agents
+  const handleRefresh = async () => {
+    setError("");
+    setSuccess("");
 
-    if (!query) return tickets;
-
-    return tickets.filter((ticket) => {
-      const searchableValues = [
-        getTicketNumber(ticket),
-        getSubject(ticket),
-        getDescription(ticket),
-        getRequester(ticket),
-        getCategory(ticket),
-        getPriority(ticket),
-      ];
-
-      return searchableValues.some((value) =>
-        String(value).toLowerCase().includes(query)
+    try {
+      await Promise.all([
+        refetchTickets().unwrap(),
+        refetchAgents().unwrap(),
+      ]);
+    } catch (err) {
+      setError(
+        err?.data?.message ||
+          "Unable to refresh tickets or agents."
       );
-    });
-  }, [tickets, search]);
-
-  const handleAgentChange = (ticketId, agentId) => {
-    setSelectedAgents((previous) => ({
-      ...previous,
-      [ticketId]: agentId,
-    }));
+    }
   };
 
+  // Handle agent selection separately for each ticket
+  const handleAgentChange = (ticketId, agentId) => {
+    setSelectedAgents((prev) => ({
+      ...prev,
+      [ticketId]: agentId,
+    }));
+
+    setError("");
+    setSuccess("");
+  };
+
+  // Assign selected agent to a ticket
   const assignTickets = async (ticketId) => {
     const agentId = selectedAgents[ticketId];
 
     if (!ticketId) {
-      toast.error("Ticket ID is missing.");
+      setError("Ticket ID is missing.");
+      setSuccess("");
       return;
     }
 
     if (!agentId) {
-      toast.error("Please select a support agent first.");
+      setError("Please select a support agent first.");
+      setSuccess("");
       return;
     }
 
     try {
       setAssigningId(ticketId);
+      setError("");
+      setSuccess("");
 
-      const response = await assignTicket({
+      // Verify exact IDs before API request
+      console.log("Assign ticket payload:", {
+        ticketId,
+        agentId,
+      });
+
+      const res = await assignTicket({
         ticketId,
         agentId,
       }).unwrap();
 
-      setSelectedAgents((previous) => {
-        const updated = { ...previous };
+      setSuccess(
+        res?.message || ""
+      );
+
+      toast.success("Ticket assigned successfully.")
+
+      // Clear selected agent for this ticket
+      setSelectedAgents((prev) => {
+        const updated = { ...prev };
         delete updated[ticketId];
         return updated;
       });
 
-      toast.success(
-        response?.message || "Ticket assigned successfully."
-      );
+      // Refresh unassigned ticket list
+      await refetchTickets().unwrap();
+    } catch (err) {
+      console.error("Ticket assignment failed:", err);
 
-      await refetchTickets();
-    } catch (error) {
-      console.error("Ticket assignment failed:", error);
-
-      toast.error(
-        getErrorMessage(
-          error,
-          "Ticket assignment failed. Please try again."
-        )
+      setError(
+        err?.data?.message ||
+          err?.data?.error ||
+          err?.error ||
+          err?.message ||
+          "Ticket assignment failed."
       );
     } finally {
       setAssigningId(null);
     }
   };
 
-  const handleRefresh = async () => {
-    try {
-      await Promise.all([
-        refetchTickets().unwrap(),
-        refetchAgents().unwrap(),
-      ]);
+  // Search and priority filtering
+  const filteredTickets = tickets.filter((ticket) => {
+    const query = search.toLowerCase().trim();
 
-      toast.success("Tickets and agents refreshed successfully.");
-    } catch (error) {
-      console.error("Refresh failed:", error);
+    const ticketNumber = String(
+      ticket.ticketNumber ||
+        ticket.TicketNumber ||
+        ticket._id ||
+        ""
+    );
 
-      toast.error(
-        getErrorMessage(
-          error,
-          "Unable to refresh tickets or agents."
-        )
-      );
-    }
+    const subject = String(
+      ticket.subject || ticket.Subject || ""
+    );
+
+    const requesterEmail = String(
+      ticket.requesterEmail ||
+        ticket.RequesterEmail ||
+        ticket.requesterId?.email ||
+        ticket.RequesterId?.Email ||
+        ""
+    );
+
+    const ticketPriority = String(
+      ticket.priority || ticket.Priority || "medium"
+    ).toLowerCase();
+
+    const matchesSearch =
+      ticketNumber.toLowerCase().includes(query) ||
+      subject.toLowerCase().includes(query) ||
+      requesterEmail.toLowerCase().includes(query);
+
+    const matchesPriority =
+      priority === "all" || ticketPriority === priority;
+
+    return matchesSearch && matchesPriority;
+  });
+
+  const priorityStyle = {
+    low: "bg-neutral-100 text-neutral-600",
+    medium: "bg-sky-50 text-sky-700",
+    high: "bg-orange-50 text-orange-700",
+    urgent: "bg-red-50 text-red-700",
   };
 
-  const isLoading = ticketsLoading || agentsLoading;
-  const isRefreshing = ticketsFetching || agentsFetching;
+  const urgentCount = tickets.filter(
+    (ticket) =>
+      String(
+        ticket.priority || ticket.Priority || "medium"
+      ).toLowerCase() === "urgent"
+  ).length;
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-[#090909] text-white">
-        <div className="flex flex-col items-center gap-4">
-          <RefreshCw className="h-8 w-8 animate-spin text-yellow-400" />
-          <p className="text-sm text-gray-400">
-            Loading unassigned tickets...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (ticketsError || agentsError) {
-    return (
-      <div className="min-h-[60vh] bg-[#090909] p-6 text-white">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-red-500/20 bg-[#111] p-8 text-center">
-          <AlertCircle className="mx-auto mb-4 h-10 w-10 text-red-400" />
-
-          <h2 className="text-xl font-semibold">
-            Unable to load data
-          </h2>
-
-          <p className="mt-2 text-sm text-gray-400">
-            Please check your connection and try again.
-          </p>
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-semibold text-black transition hover:bg-yellow-300"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const unassignedCount =
+    ticketData?.unassignedCount ??
+    ticketData?.data?.unassignedCount ??
+    tickets.length;
 
   return (
-    <div className="min-h-screen bg-[#090909] px-4 py-6 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-
+    <div className="min-h-full">
+      <div className="space-y-5">
         {/* Header */}
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm text-yellow-400">
-              <Headset className="h-4 w-4" />
-              <span>Support Management</span>
-            </div>
-
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="text-4xl font-semibold tracking-tight text-[#0f3d28] sm:text-5xl">
               Unassigned Tickets
             </h1>
 
-            <p className="mt-2 text-sm text-gray-400">
-              Assign incoming tickets to the right support agent.
+            <p className="mt-2 text-sm text-neutral-500 sm:text-base">
+              Assign pending tickets to the right support agent.
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-gray-200 transition hover:border-yellow-400/40 hover:bg-yellow-400/10 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+            disabled={isFetching || fetchingAgents}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/20 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:opacity-50"
           >
             <RefreshCw
-              className={`h-4 w-4 ${
-                isRefreshing ? "animate-spin" : ""
-              }`}
+              size={16}
+              className={
+                isFetching || fetchingAgents
+                  ? "animate-spin"
+                  : ""
+              }
             />
             Refresh
           </button>
         </div>
 
-        {/* Stats */}
+        {/* Summary cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-[#111] p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">
-                  Unassigned Tickets
-                </p>
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b7048] via-[#115236] to-[#0a2e1e] p-5 text-white sm:p-6">
+            <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full border border-white/10" />
 
-                <p className="mt-2 text-3xl font-bold">
-                  {tickets.length}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-yellow-400/10 p-3">
-                <Ticket className="h-6 w-6 text-yellow-400" />
-              </div>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-base font-medium">
+                Unassigned Tickets
+              </p>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#0f3d28]">
+                <Ticket size={20} />
+              </span>
             </div>
+
+            <p className="mt-4 text-5xl font-semibold tracking-tight">
+              {unassignedCount}
+            </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#111] p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">
-                  Available Agents
-                </p>
-
-                <p className="mt-2 text-3xl font-bold">
-                  {agents.length}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-green-400/10 p-3">
-                <UserCheck className="h-6 w-6 text-green-400" />
-              </div>
+          <div className="rounded-3xl bg-white p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-base font-medium text-[#0f3d28]">
+                Support Agents
+              </p>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
+                <UserRoundPlus size={20} />
+              </span>
             </div>
+
+            <p className="mt-4 text-5xl font-semibold tracking-tight text-[#0f3d28]">
+              {agents.length}
+            </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#111] p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">
-                  Showing Results
-                </p>
-
-                <p className="mt-2 text-3xl font-bold">
-                  {filteredTickets.length}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-blue-400/10 p-3">
-                <Search className="h-6 w-6 text-blue-400" />
-              </div>
+          <div className="rounded-3xl bg-white p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-base font-medium text-[#0f3d28]">
+                Urgent Tickets
+              </p>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <AlertCircle size={20} />
+              </span>
             </div>
+
+            <p className="mt-4 text-5xl font-semibold tracking-tight text-[#0f3d28]">
+              {urgentCount}
+            </p>
           </div>
         </div>
 
-        {/* Search */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#111] p-4 sm:flex-row sm:items-center">
+        {/* Error message */}
+        {(error || isError || agentError) && (
+          <div
+            role="alert"
+            className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          >
+            {error ||
+              queryError?.data?.message ||
+              agentQueryError?.data?.message ||
+              queryError?.error ||
+              agentQueryError?.error ||
+              "Unable to load tickets or support agents."}
+          </div>
+        )}
+
+        {/* Success message */}
+        {success && (
+          <div
+            role="status"
+            className="flex items-center gap-2 rounded-3xl border border-[#1f7a4d]/30 bg-[#1f7a4d]/10 p-4 text-sm font-medium text-[#0f3d28]"
+          >
+            <CheckCircle2 size={18} className="text-[#1f7a4d]" />
+            {success}
+          </div>
+        )}
+
+        {/* Search and priority filter */}
+        <div className="flex flex-col gap-3 rounded-3xl bg-white p-4 sm:flex-row sm:p-5">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
+            <Search
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
+            />
 
             <input
-              type="text"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by ticket, subject, requester..."
-              className="w-full rounded-xl border border-white/10 bg-[#090909] py-3 pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-yellow-400/50"
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search ticket number, subject, or email..."
+              className="w-full rounded-full border border-neutral-200 bg-[#f7f7f5] py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-neutral-400 hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15"
             />
           </div>
 
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-300 transition hover:bg-white/5"
-            >
-              Clear Search
-            </button>
-          )}
-   
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            className="rounded-full border border-neutral-200 bg-[#f7f7f5] px-5 py-3 text-sm font-medium text-neutral-700 outline-none transition hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15"
+          >
+            <option value="all">All Priorities</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
         </div>
 
-        {/* Ticket List */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#111]">
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-            <div>
-              <h2 className="font-semibold">Ticket Queue</h2>
-              <p className="mt-1 text-xs text-gray-500">
-                Review tickets and assign support agents.
-              </p>
+        {/* Tickets table */}
+        <div className="overflow-hidden rounded-3xl bg-white">
+          {loadingTickets ? (
+            <div className="flex items-center justify-center gap-3 p-12 text-neutral-500">
+              <RefreshCw
+                size={18}
+                className="animate-spin text-[#1f7a4d]"
+              />
+              Loading unassigned tickets...
             </div>
+          ) : isError && tickets.length === 0 ? (
+            <div className="p-12 text-center">
+              <AlertCircle
+                className="mx-auto mb-3 text-red-400"
+                size={40}
+              />
 
-            <span className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-medium text-yellow-400">
-              {filteredTickets.length} tickets
-            </span>
-          </div>
-
-          {filteredTickets.length === 0 ? (
-            <div className="px-6 py-16 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5">
-                <CheckCircle2 className="h-7 w-7 text-green-400" />
-              </div>
-
-              <h3 className="text-lg font-semibold">
-                {search
-                  ? "No matching tickets"
-                  : "All caught up!"}
+              <h3 className="font-semibold text-neutral-800">
+                Unable to load tickets
               </h3>
 
-              <p className="mt-2 text-sm text-gray-400">
-                {search
-                  ? "Try another search term."
-                  : "There are no unassigned tickets right now."}
+              <button
+                type="button"
+                onClick={() => refetchTickets()}
+                className="mt-4 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : filteredTickets.length === 0 ? (
+            <div className="p-12 text-center">
+              <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
+                <Ticket size={28} />
+              </div>
+
+              <h3 className="font-semibold text-neutral-800">
+                No unassigned tickets found
+              </h3>
+
+              <p className="mt-1 text-sm text-neutral-500">
+                All matching tickets may already be assigned.
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-white/[0.07]">
-              {filteredTickets.map((ticket) => {
-                const ticketId = getTicketId(ticket);
-                const priority = getPriority(ticket);
-                const isAssigning = assigningId === ticketId;
+            <div className="overflow-x-auto p-3 sm:p-4">
+              <table className="w-full min-w-[900px] text-left">
+                <thead className="bg-[#f7f7f5] text-xs text-neutral-500">
+                  <tr>
+                    <th className="rounded-l-2xl px-5 py-3.5 font-medium">
+                      Ticket
+                    </th>
+                    <th className="px-5 py-3.5 font-medium">Requester</th>
+                    <th className="px-5 py-3.5 font-medium">Priority</th>
+                    <th className="px-5 py-3.5 font-medium">Created</th>
+                    <th className="px-5 py-3.5 font-medium">
+                      Assign Agent
+                    </th>
+                    <th className="rounded-r-2xl px-5 py-3.5 font-medium">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
 
-                return (
-                  <div
-                    key={ticketId}
-                    className="p-5 transition hover:bg-white/[0.02]"
-                  >
-                    <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                <tbody className="divide-y divide-neutral-100">
+                  {filteredTickets.map((ticket) => {
+                    const ticketId = ticket._id;
 
-                      {/* Ticket Details */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
+                    const ticketNumber =
+                      ticket.ticketNumber ||
+                      ticket.TicketNumber ||
+                      ticketId;
+
+                    const subject =
+                      ticket.subject ||
+                      ticket.Subject ||
+                      "Untitled ticket";
+
+                    const requesterEmail =
+                      ticket.requesterEmail ||
+                      ticket.RequesterEmail ||
+                      ticket.requesterId?.email ||
+                      ticket.RequesterId?.Email ||
+                      "N/A";
+
+                    const ticketPriority = String(
+                      ticket.priority ||
+                        ticket.Priority ||
+                        "medium"
+                    ).toLowerCase();
+
+                    const createdAt =
+                      ticket.createdAt || ticket.CreatedAt;
+
+                    return (
+                      <tr
+                        key={ticketId}
+                        className="transition hover:bg-[#f7f7f5]"
+                      >
+                        {/* Ticket details */}
+                        <td className="px-5 py-4">
                           <button
                             type="button"
                             onClick={() =>
-                              navigate(`/admin/tickets/${ticketId}`)
+                              navigate(
+                                `/admin/tickets/${ticketId}`
+                              )
                             }
-                            className="font-semibold text-yellow-400 transition hover:text-yellow-300"
+                            className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50"
                           >
-                            #{getTicketNumber(ticket)}
+                            <span className="rounded-full bg-[#1f7a4d]/10 px-2.5 py-1 text-xs font-bold text-[#1f7a4d] hover:bg-[#1f7a4d]/20">
+                              {ticketNumber}
+                            </span>
+
+                           
                           </button>
+                        </td>
 
+                        {/* Requester */}
+                        <td className="px-5 py-4 text-sm text-neutral-600">
+                          {requesterEmail}
+                        </td>
+
+                        {/* Priority */}
+                        <td className="px-5 py-4">
                           <span
-                            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${priorityClass(
-                              priority
-                            )}`}
+                            className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                              priorityStyle[ticketPriority] ||
+                              "bg-neutral-100 text-neutral-600"
+                            }`}
                           >
-                            {priority}
+                            {ticketPriority}
                           </span>
+                        </td>
 
-                          <span className="rounded-full border border-orange-400/20 bg-orange-400/10 px-2.5 py-1 text-xs text-orange-300">
-                            Unassigned
-                          </span>
-                        </div>
+                        {/* Created date */}
+                        <td className="px-5 py-4 text-sm text-neutral-500">
+                          {createdAt
+                            ? new Date(
+                                createdAt
+                              ).toLocaleDateString()
+                            : "N/A"}
+                        </td>
 
-                        <h3 className="mt-3 break-words text-base font-semibold text-white">
-                          {getSubject(ticket)}
-                        </h3>
-
-                        <p className="mt-1 line-clamp-2 break-words text-sm text-gray-400">
-                          {getDescription(ticket)}
-                        </p>
-
-                        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-500">
-                          <span className="inline-flex items-center gap-1.5">
-                            <UserRound className="h-3.5 w-3.5" />
-                            {getRequester(ticket)}
-                          </span>
-
-                          <span className="inline-flex items-center gap-1.5">
-                            <Ticket className="h-3.5 w-3.5" />
-                            {getCategory(ticket)}
-                          </span>
-
-                          <span className="inline-flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5" />
-                            {getCreatedDate(ticket)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Assignment Controls */}
-                      <div className="flex w-full flex-col gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-4 xl:w-[340px] xl:shrink-0">
-                        <label className="text-xs font-medium uppercase tracking-wider text-gray-400">
-                          Assign Support Agent
-                        </label>
-
-                        <select
-                          value={selectedAgents[ticketId] || ""}
-                          onChange={(event) =>
-                            handleAgentChange(
-                              ticketId,
-                              event.target.value
-                            )
-                          }
-                          disabled={isAssigning || agents.length === 0}
-                          className="w-full rounded-xl border border-white/10 bg-[#171717] px-3 py-3 text-sm text-white outline-none focus:border-yellow-400/50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <option value="">
-                            {agents.length === 0
-                              ? "No agents available"
-                              : "Select an agent"}
-                          </option>
-
-                          {agents.map((agent) => (
-                            <option
-                              key={getAgentId(agent)}
-                              value={getAgentId(agent)}
-                            >
-                              {getAgentName(agent)}
+                        {/* Agent dropdown */}
+                        <td className="px-5 py-4">
+                          <select
+                            value={
+                              selectedAgents[ticketId] || ""
+                            }
+                            onChange={(e) =>
+                              handleAgentChange(
+                                ticketId,
+                                e.target.value
+                              )
+                            }
+                            disabled={
+                              loadingAgents ||
+                              agents.length === 0 ||
+                              assigningId === ticketId
+                            }
+                            className="w-56 rounded-full border border-neutral-200 bg-[#f7f7f5] px-4 py-2.5 text-sm text-neutral-700 outline-none transition hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <option value="">
+                              {loadingAgents
+                                ? "Loading agents..."
+                                : agents.length === 0
+                                  ? "No agents available"
+                                  : "Select agent"}
                             </option>
-                          ))}
-                        </select>
 
-                        <button
-                          type="button"
-                          onClick={() => assignTickets(ticketId)}
-                          disabled={
-                            isAssigning ||
-                            !selectedAgents[ticketId] ||
-                            agents.length === 0
-                          }
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isAssigning ? (
-                            <>
-                              <RefreshCw className="h-4 w-4 animate-spin" />
-                              Assigning...
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck className="h-4 w-4" />
-                              Assign Ticket
-                              <ChevronRight className="h-4 w-4" />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                            {agents.map((agent) => {
+                              const agentId = agent._id;
+
+                              const agentName =
+                                agent.name ||
+                                agent.Name ||
+                                agent.fullName ||
+                                agent.FullName ||
+                                agent.email ||
+                                agent.Email ||
+                                "Unnamed agent";
+
+                              const agentEmail =
+                                agent.email ||
+                                agent.Email ||
+                                "No email";
+
+                              return (
+                                <option
+                                  key={agentId}
+                                  value={agentId}
+                                >
+                                  {agentName} ({agentEmail})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </td>
+
+                        {/* Assign button */}
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            disabled={
+                              assigningId === ticketId ||
+                              loadingAgents ||
+                              agents.length === 0 ||
+                              !selectedAgents[ticketId]
+                            }
+                            onClick={() =>
+                              assignTickets(ticketId)
+                            }
+                            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/15 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:cursor-not-allowed disabled:bg-none disabled:bg-neutral-200 disabled:text-neutral-400 disabled:shadow-none"
+                          >
+                            {assigningId === ticketId && (
+                              <RefreshCw
+                                size={14}
+                                className="animate-spin"
+                              />
+                            )}
+                            {assigningId === ticketId
+                              ? "Assigning..."
+                              : "Assign"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-start gap-3 rounded-xl border border-blue-400/10 bg-blue-400/[0.04] p-4">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
-
-          <p className="text-sm leading-6 text-gray-400">
-            Assigning a ticket will remove it from this unassigned queue
-            once the updated ticket data is received. Make sure you select
-            the correct support agent before assigning.
-          </p>
-        </div>
+        <p className="px-1 text-sm text-neutral-500">
+          Showing{" "}
+          <strong className="text-[#0f3d28]">
+            {filteredTickets.length}
+          </strong>{" "}
+          of{" "}
+          <strong className="text-[#0f3d28]">{tickets.length}</strong>{" "}
+          tickets
+        </p>
       </div>
     </div>
   );

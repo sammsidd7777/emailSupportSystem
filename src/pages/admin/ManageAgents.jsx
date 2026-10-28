@@ -26,14 +26,14 @@ import {
   useRemoveAgentMutation,
 } from "../../services/RTK/adminApi";
 
-import { useToast } from "../../components/common/ToastProvider";
+import { toast } from "react-toastify";
 
 const API = (
   import.meta.env.VITE_API_URL || "http://localhost:8000/api"
 ).replace(/\/+$/, "");
 
 export default function ManageAgents() {
-  const toast = useToast();
+ 
 
   const {
     data: agentData,
@@ -270,7 +270,8 @@ export default function ManageAgents() {
 
         await refreshLists();
 
-        toast.success(`${name} is now a support agent.`);
+         toast.success(`${name} is now a support agent.`)
+        
 
         setModalOpen(false);
         setSelectedUserId("");

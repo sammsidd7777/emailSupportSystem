@@ -6,7 +6,8 @@ import { BrowserRouter } from "react-router-dom";
 
 import { store } from "./app/store";
 import App from "./App";
-import { ToastProvider } from "./components/common/ToastProvider";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import "./index.css";
 
@@ -14,9 +15,24 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Provider store={store}>
       <BrowserRouter>
-        <ToastProvider>
+       
           <App />
-        </ToastProvider>
+  
+<ToastContainer
+  position="top-right"
+  autoClose={4000}
+  newestOnTop
+  closeOnClick
+  pauseOnHover
+  draggable
+  theme="dark"
+  limit={4}
+  toastClassName="premium-toast"
+  progressClassName="premium-toast-progress"
+  icon
+  transition:Zoom
+/>
+
       </BrowserRouter>
     </Provider>
   </React.StrictMode>

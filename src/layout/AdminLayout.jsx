@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import AdminPushListener from "../pages/admin/AdminPushListener";
 import EnablePushNotifications from "../components/EnablePushNotifications";
-import Toast from "../components/common/Toast";
 
 const navGroups = [
   {
@@ -200,13 +199,6 @@ const AdminLayout = () => {
                     </NavLink>
                   );
                 })}
-                       <button
-  type="button"
-  onClick={() => Toast.success("Toast is working!")}
-  className="rounded-lg bg-yellow-400 px-4 py-2 font-semibold text-black"
->
-  Test Toasts
-</button>
               </div>
             </div>
           ))}
@@ -340,8 +332,7 @@ const AdminLayout = () => {
       </div>
     </div>
 
-    <EnablePushNotifications />
-    <AdminPushListener />
+  
     </>
   );
 };

@@ -1,545 +1,606 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   RefreshCw,
   Users,
-  UserRound,
-  Mail,
-  CalendarDays,
+  UserCheck,
+  UserX,
   ShieldCheck,
+  Mail,
+  Phone,
+  CalendarDays,
   CheckCircle2,
-  XCircle,
-  Eye,
-  Power,
-  X,
-  Filter,
   AlertCircle,
-  LoaderCircle,
-  ShieldAlert,
+  UserRound,
+  MapPin,
+  Clock3,
+  Hash,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
+
 import { useGetUserListQuery } from "../../services/RTK/adminApi";
-import { useToast } from "../../components/common/ToastProvider";
+
+import {toast} from 'react-toastify'
 
 const API = (
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api"
-).replace(/\/+$/, "");
-
-const getUserName = (user) =>
-  user?.Name ||
-  user?.name ||
-  user?.FullName ||
-  user?.fullName ||
-  "Unknown User";
-
-const getUserEmail = (user) =>
-  user?.Email || user?.email || "No email available";
-
-const getUserRole = (user) =>
-  user?.Role || user?.role || "user";
-
-// Status true = Active, false = Inactive
-const isActive = (user) => user?.Status === true;
-
-const getUserDate = (user) => {
-  const date =
-    user?.createdAt ||
-    user?.CreatedAt ||
-    user?.created_at;
-
-  if (!date) return "Not available";
-
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "Not available";
-  }
-
-  return parsedDate.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
-
-const getInitials = (name) =>
-  String(name || "")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
-
-const formatRole = (role) => {
-  const normalizedRole = String(role || "user").toLowerCase();
-
-  if (normalizedRole === "admin") return "Admin";
-
-  if (
-    normalizedRole === "supportagent" ||
-    normalizedRole === "support_agent"
-  ) {
-    return "Support Agent";
-  }
-
-  return normalizedRole.charAt(0).toUpperCase() +
-    normalizedRole.slice(1);
-};
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+).replace(/\/$/, "");
 
 export default function ManageUsers() {
-  const { toast } = useToast();
-
   const {
-    data,
+    data: userData,
     isLoading,
-    isError,
-    error,
-    refetch,
     isFetching,
+    isError,
+    error: queryError,
+    refetch,
   } = useGetUserListQuery();
 
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
-  const [updatingId, setUpdatingId] = useState(null);
-  const [confirmUser, setConfirmUser] = useState(null);
 
-  // Support multiple possible API response structures.
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Extract users from common API response structures.
   const users = useMemo(() => {
-    const candidates = [
-      data?.users,
-      data?.Users,
-      data?.data?.users,
-      data?.data?.Users,
-      data?.data,
-      data?.message?.users,
-      data?.message?.Users,
-      data?.message,
-    ];
+    const list = Array.isArray(userData?.users)
+      ? userData.users
+      : Array.isArray(userData?.data?.users)
+        ? userData.data.users
+        : Array.isArray(userData?.data)
+          ? userData.data
+          : Array.isArray(userData)
+            ? userData
+            : [];
 
-    return candidates.find(Array.isArray) || [];
-  }, [data]);
+    return list.filter((user) => {
+      const role = String(user.role || user.Role || "").toLowerCase();
+      return role === "customer" || role === "user";
+    });
+  }, [userData]);
 
+  const getName = (user) =>
+    user.name ||
+    user.Name ||
+    user.fullName ||
+    user.FullName ||
+    "Unnamed customer";
+
+  const getEmail = (user) => user.email || user.Email || "";
+
+  const getPhone = (user) =>
+    user.phone ||
+    user.Phone ||
+    user.phoneNumber ||
+    user.PhoneNumber ||
+    "";
+
+  const getCreatedAt = (user) =>
+    user.createdAt || user.CreatedAt || user.created_at;
+
+  const getUpdatedAt = (user) =>
+    user.updatedAt || user.UpdatedAt || user.updated_at;
+
+  const getLastLogin = (user) =>
+    user.lastLogin ||
+    user.LastLogin ||
+    user.lastLoginAt ||
+    user.LastLoginAt;
+
+  const getLocation = (user) => {
+    const address = user.address || user.Address;
+
+    const parts = [
+      typeof address === "string" ? address : "",
+      user.city || user.City,
+      user.state || user.State,
+      user.country || user.Country,
+    ].filter(Boolean);
+
+    return parts.join(", ");
+  };
+
+  const getInitials = (user) => {
+    const name = getName(user);
+
+    return name !== "Unnamed customer"
+      ? name
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase()
+      : "";
+  };
+
+  const isActive = (user) =>
+    user.isActive !== undefined
+      ? user.isActive !== false
+      : user.IsActive !== false;
+
+  // Search and status filters.
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return users.filter((user) => {
-      const name = getUserName(user).toLowerCase();
-      const email = getUserEmail(user).toLowerCase();
-      const role = String(getUserRole(user)).toLowerCase();
+      const matchesSearch =
+        getName(user).toLowerCase().includes(query) ||
+        getEmail(user).toLowerCase().includes(query) ||
+        String(getPhone(user)).toLowerCase().includes(query);
+
       const active = isActive(user);
 
-      const matchesSearch =
-        !query ||
-        name.includes(query) ||
-        email.includes(query) ||
-        role.includes(query);
-
-      const matchesRole =
-        roleFilter === "all" || role === roleFilter;
-
       const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && active) ||
-        (statusFilter === "inactive" && !active);
+        status === "all" ||
+        (status === "active" && active) ||
+        (status === "inactive" && !active);
 
-      return matchesSearch && matchesRole && matchesStatus;
+      return matchesSearch && matchesStatus;
     });
-  }, [users, search, roleFilter, statusFilter]);
+  }, [users, search, status]);
+
+  // Pagination calculations
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const safeCurrentPage = Math.min(
+    currentPage,
+    Math.max(totalPages, 1)
+  );
+
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Reset page when search, status or page size changes.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, status, pageSize]);
+
+  // Keep the page valid when the result count decreases.
+  useEffect(() => {
+    if (currentPage > Math.max(totalPages, 1)) {
+      setCurrentPage(Math.max(totalPages, 1));
+    }
+  }, [currentPage, totalPages]);
+
+  const goToPage = (page) => {
+    setCurrentPage(
+      Math.min(Math.max(page, 1), Math.max(totalPages, 1))
+    );
+  };
 
   const activeCount = users.filter(isActive).length;
   const inactiveCount = users.length - activeCount;
 
-  const clearFilters = () => {
-    setSearch("");
-    setRoleFilter("all");
-    setStatusFilter("all");
-  };
-
-  // Open custom confirmation modal.
-  const openStatusConfirmation = (user) => {
-    if (!user?._id || updatingId) return;
-    setConfirmUser(user);
-  };
-
-  // Update account status after confirmation.
-  const toggleStatus = async () => {
-    const user = confirmUser;
-
-    if (!user?._id || updatingId) return;
-
-    const currentlyActive = isActive(user);
-    setUpdatingId(user._id);
-    setConfirmUser(null);
+  const handleRefresh = async () => {
+    setError("");
+    setSuccess("");
 
     try {
-      const response = await fetch(
-        `${API}/users/${user._id}/status`,
-        {
-          method: "PATCH",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok || result.success === false) {
-        throw new Error(
-          result.message || "Unable to update user status."
-        );
-      }
-
-      // Refresh data from the backend.
       await refetch().unwrap();
-
-      // Keep the open details modal in sync.
-      setSelectedUser((current) =>
-        current?._id === user._id
-          ? { ...current, Status: !currentlyActive }
-          : current
-      );
-
-      toast.success(
-        `${getUserName(user)} has been ${
-          currentlyActive ? "deactivated" : "activated"
-        } successfully.`
-      );
-    } catch (err) {
-      toast.error(
-        err?.data?.message ||
-          err?.message ||
-          "Failed to update user status."
-      );
-    } finally {
-      setUpdatingId(null);
+    } catch {
+      setError("Unable to refresh customers. Please try again.");
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-3">
-          <LoaderCircle className="h-9 w-9 animate-spin text-emerald-600" />
-          <p className="text-sm font-medium text-slate-500">
-            Loading users...
-          </p>
-        </div>
-      </div>
+  // Activate or deactivate a customer.
+  const toggleStatus = async (user) => {
+    const currentlyActive = isActive(user);
+    const name = getName(user);
+
+    const confirmed = window.confirm(
+      `Are you sure you want to ${
+        currentlyActive ? "deactivate" : "activate"
+      } ${name}?`
     );
-  }
 
-  if (isError) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-slate-50 p-6">
-        <div className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-7 text-center shadow-sm">
-          <AlertCircle className="mx-auto mb-3 h-10 w-10 text-red-500" />
+    if (!confirmed) return;
 
-          <h2 className="text-lg font-bold text-slate-900">
-            Unable to load users
-          </h2>
+    try {
+      setBusyId(user._id);
+      setError("");
+      setSuccess("");
 
-          <p className="mt-2 text-sm text-slate-500">
-            {error?.data?.message ||
-              error?.error ||
-              "Something went wrong while fetching users."}
-          </p>
+      const res = await fetch(`${API}/users/${user._id}/status`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          isActive: !currentlyActive,
+        }),
+      });
 
-          <button
-            onClick={() => refetch()}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-          >
-            <RefreshCw size={16} />
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
+      const result = await res.json();
+
+      toast.success("status updated")
+
+      if (!res.ok || result.success === false) {
+        throw new Error(result.message || "Unable to update customer.");
+      }
+
+    
+
+      setSelectedUser(null);
+
+      // Refresh the source of truth from the backend.
+      await refetch();
+    } catch (err) {
+      toast.error("status update fail")
+      setError(err.message || "Unable to update customer.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "—";
+
+    const parsed = new Date(date);
+
+    return Number.isNaN(parsed.getTime())
+      ? "—"
+      : parsed.toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+  };
+
+  const formatDateTime = (date) => {
+    if (!date) return "—";
+
+    const parsed = new Date(date);
+
+    return Number.isNaN(parsed.getTime())
+      ? "—"
+      : parsed.toLocaleString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 text-slate-900 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-
-        {/* Header */}
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div className="min-h-full">
+      <div className="space-y-5">
+        {/* Page header */}
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-700">
-              <Users size={17} />
-              User Management
-            </div>
-
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Manage Users
+            <h1 className="text-4xl font-semibold tracking-tight text-[#0f3d28] sm:text-5xl">
+              Manage Customers
             </h1>
 
-            <p className="mt-2 text-sm text-slate-500">
-              View user accounts and manage their access status.
+            <p className="mt-2 text-sm text-neutral-500 sm:text-base">
+              View customer accounts and manage account access.
             </p>
           </div>
 
           <button
-            onClick={async () => {
-              try {
-                await refetch().unwrap();
-                toast.success("User list refreshed successfully.");
-              } catch (err) {
-                toast.error(
-                  err?.data?.message || "Failed to refresh users."
-                );
-              }
-            }}
+            type="button"
+            onClick={handleRefresh}
             disabled={isFetching}
-            className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/20 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw
               size={16}
               className={isFetching ? "animate-spin" : ""}
             />
-            Refresh
+            {isFetching ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
-        {/* Stats */}
+        {/* Statistics */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
-            title="Total Users"
+            featured
+            title="Total Customers"
             value={users.length}
-            icon={Users}
-            iconClass="bg-blue-50 text-blue-600"
-            description="All registered accounts"
+            description="Registered customer accounts"
+            icon={<Users size={20} />}
           />
 
           <StatCard
-            title="Active Users"
+            title="Active Customers"
             value={activeCount}
-            icon={CheckCircle2}
-            iconClass="bg-emerald-50 text-emerald-600"
-            description="Status is true"
+            description="Accounts currently enabled"
+            icon={<UserCheck size={20} />}
+            iconClass="bg-[#1f7a4d]/10 text-[#1f7a4d]"
           />
 
           <StatCard
-            title="Inactive Users"
+            title="Inactive Customers"
             value={inactiveCount}
-            icon={XCircle}
-            iconClass="bg-red-50 text-red-600"
-            description="Status is false or missing"
+            description="Accounts currently disabled"
+            icon={<UserX size={20} />}
+            iconClass="bg-rose-50 text-rose-600"
           />
         </div>
 
-        {/* Search and Filters */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <Filter size={17} className="text-emerald-600" />
-            <h2 className="font-semibold text-slate-900">
-              Search and Filters
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_190px_190px_auto]">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <input
-                type="text"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search name, email, or role..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-
-            <select
-              value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="all">All Roles</option>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-              <option value="supportagent">Support Agent</option>
-              <option value="support_agent">Support Agent</option>
-            </select>
-
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-
+        {/* Notifications */}
+        {error && (
+          <div className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <AlertCircle size={19} className="mt-0.5 shrink-0" />
+            <div className="flex-1">{error}</div>
             <button
-              onClick={clearFilters}
-              className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+              type="button"
+              onClick={() => setError("")}
+              aria-label="Dismiss error"
             >
-              Clear
+              <X size={17} />
             </button>
           </div>
-        </div>
+        )}
 
-        {/* Users Table */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
+        {success && (
+          <div className="flex items-start gap-3 rounded-3xl border border-[#1f7a4d]/30 bg-[#1f7a4d]/10 p-4 text-sm font-medium text-[#0f3d28]">
+            <CheckCircle2
+              size={19}
+              className="mt-0.5 shrink-0 text-[#1f7a4d]"
+            />
+            <div className="flex-1">{success}</div>
+            <button
+              type="button"
+              onClick={() => setSuccess("")}
+              aria-label="Dismiss success"
+            >
+              <X size={17} />
+            </button>
+          </div>
+        )}
+
+        {isError && !error && (
+          <div className="flex items-center gap-3 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <AlertCircle size={19} />
+            {queryError?.data?.message ||
+              queryError?.error ||
+              "Unable to load customer accounts."}
+          </div>
+        )}
+
+        {/* Main content */}
+        <div className="overflow-hidden rounded-3xl bg-white">
+          {/* Search toolbar */}
+          <div className="flex flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="font-bold text-slate-900">All Users</h2>
-              <p className="mt-1 text-xs text-slate-500">
-                Showing {filteredUsers.length} of {users.length} users
+              <h2 className="text-xl font-semibold text-[#0f3d28]">
+                Customer Directory
+              </h2>
+              <p className="mt-1 text-sm text-neutral-500">
+                Search, review, and update customer accounts.
               </p>
             </div>
 
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative sm:w-72">
+                <Search
+                  size={18}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
+                />
+
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search name, email, phone..."
+                  className="w-full rounded-full border border-neutral-200 bg-[#f7f7f5] py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-neutral-400 hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15"
+                />
+              </div>
+
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="rounded-full border border-neutral-200 bg-[#f7f7f5] px-5 py-3 text-sm font-medium text-neutral-700 outline-none transition hover:border-[#1f7a4d]/50 focus:border-[#1f7a4d] focus:ring-4 focus:ring-[#1f7a4d]/15"
+              >
+                <option value="all">All statuses</option>
+                <option value="active">Active only</option>
+                <option value="inactive">Inactive only</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Results summary */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3 text-xs text-neutral-500 sm:px-6">
+            <span>
+              Showing{" "}
+              <strong className="text-[#0f3d28]">
+                {totalItems > 0 ? startIndex + 1 : 0}–{endIndex}
+              </strong>{" "}
+              of{" "}
+              <strong className="text-[#0f3d28]">
+                {totalItems}
+              </strong>{" "}
+              customers
+            </span>
+
             {isFetching && (
-              <span className="inline-flex items-center gap-2 text-xs font-medium text-emerald-700">
-                <LoaderCircle size={14} className="animate-spin" />
-                Updating list...
+              <span className="inline-flex items-center gap-2 text-[#1f7a4d]">
+                <RefreshCw size={13} className="animate-spin" />
+                Updating...
               </span>
             )}
           </div>
 
-          {filteredUsers.length === 0 ? (
-            <div className="px-6 py-16 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-                <Users size={25} className="text-slate-400" />
-              </div>
-
-              <h3 className="font-semibold text-slate-800">
-                No users found
+          {/* Table */}
+          {isLoading ? (
+            <div className="space-y-4 p-6 pt-2">
+              {[1, 2, 3, 4].map((item) => (
+                <div
+                  key={item}
+                  className="h-16 animate-pulse rounded-2xl bg-neutral-100"
+                />
+              ))}
+            </div>
+          ) : isError && users.length === 0 ? (
+            <div className="px-5 py-16 text-center">
+              <AlertCircle
+                size={36}
+                className="mx-auto mb-3 text-red-400"
+              />
+              <h3 className="font-semibold text-neutral-800">
+                Couldn't load customers
               </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Try changing your search or filters.
+              <p className="mt-1 text-sm text-neutral-500">
+                Check your connection and try again.
               </p>
-
               <button
-                onClick={clearFilters}
-                className="mt-4 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+                type="button"
+                onClick={handleRefresh}
+                className="mt-4 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
               >
-                Clear filters
+                Try again
               </button>
             </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="px-5 py-16 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
+                <Users size={27} />
+              </div>
+              <h3 className="font-semibold text-neutral-900">
+                No customers found
+              </h3>
+              <p className="mt-1 text-sm text-neutral-500">
+                Try changing your search or status filter.
+              </p>
+
+              {(search || status !== "all") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setStatus("all");
+                    setCurrentPage(1);
+                  }}
+                  className="mt-4 text-sm font-semibold text-[#1f7a4d] hover:text-[#0f3d28]"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto px-3 pb-3 sm:px-4 sm:pb-4">
               <table className="w-full min-w-[850px] text-left">
-                <thead className="bg-slate-50">
-                  <tr className="border-b border-slate-100">
-                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      User
+                <thead className="bg-[#f7f7f5] text-xs text-neutral-500">
+                  <tr>
+                    <th className="rounded-l-2xl px-5 py-3.5 font-medium">
+                      Customer
                     </th>
-                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Role
-                    </th>
-                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Joined
-                    </th>
-                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Status
-                    </th>
-                    <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Actions
+                    <th className="px-5 py-3.5 font-medium">Phone</th>
+                    <th className="px-5 py-3.5 font-medium">Joined</th>
+                    <th className="px-5 py-3.5 font-medium">Status</th>
+                    <th className="rounded-r-2xl px-5 py-3.5 text-right font-medium">
+                      Action
                     </th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-100">
-                  {filteredUsers.map((user) => {
+                <tbody className="divide-y divide-neutral-100">
+                  {paginatedUsers.map((user) => {
                     const active = isActive(user);
-                    const busy = updatingId === user._id;
+                    const name = getName(user);
+                    const email = getEmail(user);
+                    const phone = getPhone(user);
 
                     return (
                       <tr
                         key={user._id}
-                        className="transition hover:bg-slate-50/80"
+                        className="transition-colors hover:bg-[#f7f7f5]"
                       >
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-sm font-bold text-emerald-700">
-                              {getInitials(getUserName(user)) || (
-                                <UserRound size={19} />
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#63c192] to-[#1f7a4d] text-sm font-bold text-white">
+                              {getInitials(user) || (
+                                <UserRound size={20} />
                               )}
                             </div>
 
                             <div className="min-w-0">
-                              <p className="max-w-[220px] truncate text-sm font-semibold text-slate-900">
-                                {getUserName(user)}
+                              <p className="font-semibold text-[#0f3d28]">
+                                {name}
                               </p>
-
-                              <p className="mt-1 flex max-w-[230px] items-center gap-1.5 truncate text-xs text-slate-500">
+                              <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">
                                 <Mail size={13} className="shrink-0" />
-                                {getUserEmail(user)}
+                                <span className="max-w-[230px] truncate">
+                                  {email || "No email provided"}
+                                </span>
                               </p>
                             </div>
                           </div>
                         </td>
 
                         <td className="px-5 py-4">
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
-                            <ShieldCheck size={13} />
-                            {formatRole(getUserRole(user))}
+                          <span className="inline-flex items-center gap-2 text-sm text-neutral-600">
+                            <Phone size={14} className="text-neutral-400" />
+                            {phone || "—"}
                           </span>
                         </td>
 
                         <td className="px-5 py-4">
-                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <span className="inline-flex items-center gap-2 text-sm text-neutral-600">
                             <CalendarDays
-                              size={15}
-                              className="text-slate-400"
+                              size={14}
+                              className="text-neutral-400"
                             />
-                            {getUserDate(user)}
-                          </div>
+                            {formatDate(getCreatedAt(user))}
+                          </span>
                         </td>
 
                         <td className="px-5 py-4">
-                          <StatusBadge active={active} />
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${
+                              active
+                                ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                                : "bg-rose-50 text-rose-700 ring-rose-200"
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                active ? "bg-emerald-500" : "bg-rose-500"
+                              }`}
+                            />
+                            {active ? "Active" : "Inactive"}
+                          </span>
                         </td>
 
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              type="button"
                               onClick={() => setSelectedUser(user)}
-                              title="View user details"
-                              aria-label={`View ${getUserName(user)}`}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                              className="rounded-full border border-[#1f7a4d]/50 px-4 py-2 text-xs font-semibold text-[#0f3d28] transition hover:bg-[#0f3d28] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50"
                             >
-                              <Eye size={16} />
+                              Details
                             </button>
 
                             <button
-                              onClick={() =>
-                                openStatusConfirmation(user)
-                              }
-                              disabled={Boolean(updatingId)}
-                              title={
+                              type="button"
+                              disabled={busyId === user._id}
+                              onClick={() => toggleStatus(user)}
+                              className={`min-w-[100px] rounded-full px-4 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:cursor-not-allowed disabled:opacity-50 ${
                                 active
-                                  ? "Deactivate user"
-                                  : "Activate user"
-                              }
-                              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                active
-                                  ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                                  : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                  ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                               }`}
                             >
-                              {busy ? (
-                                <LoaderCircle
-                                  size={14}
-                                  className="animate-spin"
-                                />
-                              ) : (
-                                <Power size={14} />
-                              )}
-
-                              {busy
-                                ? "Updating"
+                              {busyId === user._id
+                                ? "Updating..."
                                 : active
                                   ? "Deactivate"
                                   : "Activate"}
@@ -553,271 +614,345 @@ export default function ManageUsers() {
               </table>
             </div>
           )}
+
+          {/* Table footer */}
+          {!isLoading && filteredUsers.length > 0 && (
+            <div className="bg-[#f7f7f5] px-5 py-3 text-xs text-neutral-500 sm:px-6">
+              Customer management
+              <span className="mx-2 text-neutral-300">•</span>
+              {activeCount} active
+              <span className="mx-2 text-neutral-300">•</span>
+              {inactiveCount} inactive
+            </div>
+          )}
         </div>
 
-        {/* User Details Modal */}
-        {selectedUser && (
-          <div
-            className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4 backdrop-blur-sm"
-            onClick={() => setSelectedUser(null)}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="user-details-title"
-              className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
-                <div>
-                  <h2
-                    id="user-details-title"
-                    className="text-lg font-bold text-slate-900"
-                  >
-                    User Details
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Account information and current status
-                  </p>
-                </div>
+        {/* Pagination controls */}
+        {!isLoading && totalItems > 0 && (
+          <div className="flex flex-col gap-4 rounded-3xl bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-500">
+              <label htmlFor="userPageSize">Rows per page</label>
 
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  aria-label="Close user details"
-                  className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                >
-                  <X size={19} />
-                </button>
-              </div>
+              <select
+                id="userPageSize"
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-lg border border-neutral-200 bg-[#f7f7f5] px-3 py-2 text-sm text-neutral-700 outline-none focus:border-[#1f7a4d]"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
 
-              <div className="px-6 py-6">
-                <div className="flex flex-col items-center text-center">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-50 text-2xl font-bold text-emerald-700">
-                    {getInitials(getUserName(selectedUser)) || (
-                      <UserRound size={30} />
-                    )}
-                  </div>
-
-                  <h3 className="mt-4 text-xl font-bold text-slate-900">
-                    {getUserName(selectedUser)}
-                  </h3>
-
-                  <p className="mt-1 break-all text-sm text-slate-500">
-                    {getUserEmail(selectedUser)}
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                    <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                      {formatRole(getUserRole(selectedUser))}
-                    </span>
-                    <StatusBadge active={isActive(selectedUser)} />
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-3">
-                  <DetailRow
-                    label="User ID"
-                    value={selectedUser._id || "Not available"}
-                  />
-                  <DetailRow
-                    label="Email"
-                    value={getUserEmail(selectedUser)}
-                  />
-                  <DetailRow
-                    label="Role"
-                    value={formatRole(getUserRole(selectedUser))}
-                  />
-                  <DetailRow
-                    label="Account Status"
-                    value={
-                      isActive(selectedUser) ? "Active" : "Inactive"
-                    }
-                  />
-                  <DetailRow
-                    label="Joined Date"
-                    value={getUserDate(selectedUser)}
-                  />
-                </div>
-
-                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
-                  <button
-                    onClick={() => setSelectedUser(null)}
-                    className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Close
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      openStatusConfirmation(selectedUser)
-                    }
-                    disabled={Boolean(updatingId)}
-                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                      isActive(selectedUser)
-                        ? "bg-red-600 text-white hover:bg-red-700"
-                        : "bg-emerald-600 text-white hover:bg-emerald-700"
-                    }`}
-                  >
-                    <Power size={16} />
-                    {isActive(selectedUser)
-                      ? "Deactivate User"
-                      : "Activate User"}
-                  </button>
-                </div>
-              </div>
+              <span className="ml-1">
+                Page {safeCurrentPage} of {Math.max(totalPages, 1)}
+              </span>
             </div>
-          </div>
-        )}
 
-        {/* Custom Status Confirmation Modal */}
-        {confirmUser && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
-            onClick={() => setConfirmUser(null)}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="confirm-status-title"
-              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-start gap-4">
-                <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
-                    isActive(confirmUser)
-                      ? "bg-red-50 text-red-600"
-                      : "bg-emerald-50 text-emerald-600"
-                  }`}
-                >
-                  {isActive(confirmUser) ? (
-                    <ShieldAlert size={24} />
-                  ) : (
-                    <ShieldCheck size={24} />
-                  )}
-                </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <PaginationButton
+                label="First page"
+                disabled={safeCurrentPage === 1}
+                onClick={() => goToPage(1)}
+              >
+                <ChevronsLeft size={17} />
+              </PaginationButton>
 
-                <div className="flex-1">
-                  <h2
-                    id="confirm-status-title"
-                    className="text-lg font-bold text-slate-900"
-                  >
-                    {isActive(confirmUser)
-                      ? "Deactivate User?"
-                      : "Activate User?"}
-                  </h2>
+              <PaginationButton
+                label="Previous page"
+                disabled={safeCurrentPage === 1}
+                onClick={() => goToPage(safeCurrentPage - 1)}
+              >
+                <ChevronLeft size={17} />
+              </PaginationButton>
 
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Are you sure you want to{" "}
-                    <span className="font-semibold text-slate-800">
-                      {isActive(confirmUser)
-                        ? "deactivate"
-                        : "activate"}
-                    </span>{" "}
-                    <span className="font-semibold text-slate-800">
-                      {getUserName(confirmUser)}
-                    </span>
-                    ?
-                  </p>
-                </div>
+              {Array.from(
+                { length: Math.min(5, totalPages) },
+                (_, index) => {
+                  const startPage = Math.max(
+                    1,
+                    Math.min(safeCurrentPage - 2, totalPages - 4)
+                  );
+                  const page = startPage + index;
 
-                <button
-                  onClick={() => setConfirmUser(null)}
-                  aria-label="Close confirmation"
-                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => goToPage(page)}
+                      aria-current={
+                        page === safeCurrentPage ? "page" : undefined
+                      }
+                      className={`h-9 min-w-9 rounded-xl px-3 text-sm font-semibold transition ${
+                        page === safeCurrentPage
+                          ? "bg-gradient-to-r from-[#1b7048] to-[#0d3b27] text-white shadow-sm"
+                          : "text-neutral-600 hover:bg-[#1f7a4d]/10 hover:text-[#0f3d28]"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                }
+              )}
 
-              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <button
-                  onClick={() => setConfirmUser(null)}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
+              <PaginationButton
+                label="Next page"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => goToPage(safeCurrentPage + 1)}
+              >
+                <ChevronRight size={17} />
+              </PaginationButton>
 
-                <button
-                  onClick={toggleStatus}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${
-                    isActive(confirmUser)
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-emerald-600 hover:bg-emerald-700"
-                  }`}
-                >
-                  <Power size={15} />
-                  Yes,{" "}
-                  {isActive(confirmUser) ? "Deactivate" : "Activate"}
-                </button>
-              </div>
+              <PaginationButton
+                label="Last page"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => goToPage(totalPages)}
+              >
+                <ChevronsRight size={17} />
+              </PaginationButton>
             </div>
           </div>
         )}
       </div>
+
+      {/* Customer details modal */}
+      {selectedUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#06190f]/50 p-4 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedUser(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="customer-details-title"
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[28px] bg-[#f7f7f5] shadow-2xl"
+          >
+            {/* Profile banner */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#1b7048] via-[#115236] to-[#0a2e1e] p-6 text-white">
+              <div className="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full border border-white/10" />
+              <div className="pointer-events-none absolute -bottom-4 -right-4 h-20 w-20 rounded-full border border-white/10" />
+
+              <button
+                type="button"
+                onClick={() => setSelectedUser(null)}
+                aria-label="Close customer details"
+                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              >
+                <X size={18} />
+              </button>
+
+              <p className="text-xs font-medium text-white/60">
+                Customer details
+              </p>
+
+              <div className="relative mt-4 flex items-center gap-4">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#63c192] text-xl font-bold text-[#06190f]">
+                  {getInitials(selectedUser) || (
+                    <UserRound size={26} />
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <h2
+                    id="customer-details-title"
+                    className="truncate text-xl font-semibold"
+                  >
+                    {getName(selectedUser)}
+                  </h2>
+                  <p className="mt-0.5 break-all text-sm text-white/70">
+                    {getEmail(selectedUser) || "No email provided"}
+                  </p>
+
+                  <span
+                    className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                      isActive(selectedUser)
+                        ? "bg-[#63c192]/20 text-[#9ee6bd]"
+                        : "bg-rose-400/20 text-rose-200"
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        isActive(selectedUser)
+                          ? "bg-[#63c192]"
+                          : "bg-rose-300"
+                      }`}
+                    />
+                    {isActive(selectedUser)
+                      ? "Active account"
+                      : "Inactive account"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 p-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailRow
+                  icon={<Mail size={17} />}
+                  label="Email"
+                  value={getEmail(selectedUser) || "Not provided"}
+                />
+
+                <DetailRow
+                  icon={<Phone size={17} />}
+                  label="Phone"
+                  value={getPhone(selectedUser) || "Not provided"}
+                />
+
+                <DetailRow
+                  icon={<CalendarDays size={17} />}
+                  label="Joined"
+                  value={formatDate(getCreatedAt(selectedUser))}
+                />
+
+                <DetailRow
+                  icon={<ShieldCheck size={17} />}
+                  label="Role"
+                  value={
+                    selectedUser.role || selectedUser.Role || "Customer"
+                  }
+                />
+
+                {getUpdatedAt(selectedUser) && (
+                  <DetailRow
+                    icon={<Clock3 size={17} />}
+                    label="Last updated"
+                    value={formatDateTime(getUpdatedAt(selectedUser))}
+                  />
+                )}
+
+                {getLastLogin(selectedUser) && (
+                  <DetailRow
+                    icon={<Clock3 size={17} />}
+                    label="Last login"
+                    value={formatDateTime(getLastLogin(selectedUser))}
+                  />
+                )}
+
+                {getLocation(selectedUser) && (
+                  <DetailRow
+                    icon={<MapPin size={17} />}
+                    label="Location"
+                    value={getLocation(selectedUser)}
+                    wide
+                  />
+                )}
+
+                <DetailRow
+                  icon={<Hash size={17} />}
+                  label="User ID"
+                  value={selectedUser._id || "—"}
+                  wide
+                />
+              </div>
+
+              <button
+                type="button"
+                disabled={busyId === selectedUser._id}
+                onClick={() => toggleStatus(selectedUser)}
+                className={`mt-2 w-full rounded-full px-4 py-3.5 text-sm font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:opacity-50 ${
+                  isActive(selectedUser)
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : "bg-gradient-to-r from-[#1b7048] to-[#0d3b27] hover:brightness-110"
+                }`}
+              >
+                {busyId === selectedUser._id
+                  ? "Updating..."
+                  : isActive(selectedUser)
+                    ? "Deactivate Customer"
+                    : "Activate Customer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function PaginationButton({ children, disabled, onClick, label }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-9 min-w-9 items-center justify-center rounded-xl border border-neutral-200 text-neutral-600 transition hover:border-[#1f7a4d]/30 hover:bg-[#1f7a4d]/10 hover:text-[#0f3d28] disabled:cursor-not-allowed disabled:opacity-35"
+    >
+      {children}
+    </button>
   );
 }
 
 function StatCard({
   title,
   value,
-  icon: Icon,
-  iconClass,
   description,
+  icon,
+  iconClass = "",
+  featured = false,
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-slate-500">
-            {title}
-          </p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-            {value}
-          </p>
-        </div>
+    <div
+      className={`relative overflow-hidden rounded-3xl p-5 sm:p-6 ${
+        featured
+          ? "bg-gradient-to-br from-[#1b7048] via-[#115236] to-[#0a2e1e] text-white"
+          : "bg-white text-[#0f3d28]"
+      }`}
+    >
+      {featured && (
+        <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full border border-white/10" />
+      )}
 
-        <div
-          className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconClass}`}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-base font-medium">{title}</p>
+
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+            featured ? "bg-white text-[#0f3d28]" : iconClass
+          }`}
         >
-          <Icon size={23} />
-        </div>
+          {icon}
+        </span>
       </div>
 
-      <p className="mt-3 text-xs text-slate-500">{description}</p>
+      <p className="mt-4 text-5xl font-semibold tracking-tight">
+        {value}
+      </p>
+
+      <p
+        className={`mt-3 text-xs ${
+          featured ? "text-[#9ee6bd]" : "text-[#1f7a4d]"
+        }`}
+      >
+        {description}
+      </p>
     </div>
   );
 }
 
-function StatusBadge({ active }) {
+function DetailRow({ icon, label, value, wide = false }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold ${
-        active
-          ? "bg-emerald-50 text-emerald-700"
-          : "bg-red-50 text-red-700"
+    <div
+      className={`flex items-start gap-3 rounded-2xl bg-white p-4 ${
+        wide ? "sm:col-span-2" : ""
       }`}
     >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${
-          active ? "bg-emerald-500" : "bg-red-500"
-        }`}
-      />
-      {active ? "Active" : "Inactive"}
-    </span>
-  );
-}
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
+        {icon}
+      </div>
 
-function DetailRow({ label, value }) {
-  return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-      <span className="shrink-0 text-sm text-slate-500">
-        {label}
-      </span>
-      <span className="break-all text-right text-sm font-semibold text-slate-800">
-        {value}
-      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-neutral-500">{label}</p>
+        <p className="mt-1 break-words text-sm font-semibold text-[#0f3d28]">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
