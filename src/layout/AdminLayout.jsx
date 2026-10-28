@@ -205,7 +205,7 @@ const AdminLayout = () => {
   onClick={() => Toast.success("Toast is working!")}
   className="rounded-lg bg-yellow-400 px-4 py-2 font-semibold text-black"
 >
-  Test Toast
+  Test Toasts
 </button>
               </div>
             </div>
