@@ -792,11 +792,7 @@ export default function AdminDashboard() {
         <footer className="flex flex-col gap-2 pt-2 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
           <p>Admin Dashboard · Support Management System</p>
 
-          <p>
-            {isFetching
-              ? "Syncing data..."
-              : "Data is shown from your dashboard API"}
-          </p>
+         
         </footer>
       </div>
     </main>
