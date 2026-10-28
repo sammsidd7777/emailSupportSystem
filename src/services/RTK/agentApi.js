@@ -2,7 +2,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 const API = (
-  import.meta.env.VITE_API_URL || "https://email-support-system-spi.vercel.app/api"
+https://email-support-system-spi.vercel.app/api"
 ).replace(/\/$/, "");
 
 export const agentApi = createApi({
