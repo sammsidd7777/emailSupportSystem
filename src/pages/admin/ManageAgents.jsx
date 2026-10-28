@@ -14,6 +14,9 @@ import {
   CalendarDays,
   AlertCircle,
   CheckCircle2,
+  ShieldCheck,
+  Power,
+  LoaderCircle,
 } from "lucide-react";
 
 import {
@@ -23,11 +26,15 @@ import {
   useRemoveAgentMutation,
 } from "../../services/RTK/adminApi";
 
+import { useToast } from "../../components/common/ToastProvider";
+
 const API = (
   import.meta.env.VITE_API_URL || "http://localhost:8000/api"
-).replace(/\/$/, "");
+).replace(/\/+$/, "");
 
 export default function ManageAgents() {
+  const toast = useToast();
+
   const {
     data: agentData,
     isLoading: loadingAgents,
@@ -40,13 +47,15 @@ export default function ManageAgents() {
   const {
     data: userData,
     isLoading: loadingUsers,
+    isError: usersError,
     refetch: refetchUsers,
   } = useGetUserListQuery();
 
   const [makeAgent, { isLoading: makingAgent }] =
     useMakeAgentMutation();
 
-  const [removeAgent] = useRemoveAgentMutation();
+  const [removeAgent, { isLoading: removingAgent }] =
+    useRemoveAgentMutation();
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -54,35 +63,39 @@ export default function ManageAgents() {
   const [userSearch, setUserSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [busyId, setBusyId] = useState(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [changingStatus, setChangingStatus] = useState(false);
 
-  // Extract agents from API response
+  const isBusy =
+    busyId !== null ||
+    makingAgent ||
+    removingAgent ||
+    changingStatus;
+
+  // Extract agents from API response.
   const agents = useMemo(() => {
-    const list = Array.isArray(agentData?.agents)
-      ? agentData.agents
-      : Array.isArray(agentData?.data?.agents)
-        ? agentData.data.agents
-        : Array.isArray(agentData?.data)
-          ? agentData.data
-          : Array.isArray(agentData)
-            ? agentData
-            : [];
+    const list = [
+      agentData?.agents,
+      agentData?.data?.agents,
+      agentData?.data,
+      agentData?.message?.agents,
+      agentData?.message,
+      agentData,
+    ].find(Array.isArray);
 
-    return list;
+    return list || [];
   }, [agentData]);
 
-  // Extract all users from API response
+  // Extract users from API response.
   const availableUsers = useMemo(() => {
-    const list = Array.isArray(userData?.users)
-      ? userData.users
-      : Array.isArray(userData?.data?.users)
-        ? userData.data.users
-        : Array.isArray(userData?.data)
-          ? userData.data
-          : Array.isArray(userData)
-            ? userData
-            : [];
+    const list = [
+      userData?.users,
+      userData?.data?.users,
+      userData?.data,
+      userData?.message?.users,
+      userData?.message,
+      userData,
+    ].find(Array.isArray) || [];
 
     const agentIds = new Set(
       agents.map((agent) => String(agent._id))
@@ -129,10 +142,8 @@ export default function ManageAgents() {
       .join("")
       .toUpperCase();
 
-  const isActive = (person) =>
-    person?.isActive !== undefined
-      ? person.isActive !== false
-      : person?.IsActive !== false;
+  // Status true = Active, false = Inactive.
+  const isActive = (person) => person?.Status === true;
 
   const activeCount = agents.filter(isActive).length;
   const inactiveCount = agents.length - activeCount;
@@ -178,69 +189,128 @@ export default function ManageAgents() {
         });
   };
 
-  const handleRefresh = async () => {
-    setError("");
-    setSuccess("");
+  const refreshLists = async () => {
+    const results = await Promise.all([
+      refetchAgents(),
+      refetchUsers(),
+    ]);
 
-    try {
-      await Promise.all([
-        refetchAgents(),
-        refetchUsers(),
-      ]);
-    } catch {
-      setError("Unable to refresh the lists.");
+    if (results.some((result) => result.isError)) {
+      throw new Error("Unable to refresh the latest lists.");
     }
   };
 
-  // Promote a customer to a support agent.
-  const changeRole = async (person) => {
-    const name = getName(person);
-
-    if (
-      !window.confirm(
-        `Are you sure you want to make ${name} a support agent?`
-      )
-    ) {
-      return false;
+  const handleRefresh = async () => {
+    try {
+      await refreshLists();
+      toast.success("Agent and user lists refreshed.");
+    } catch (err) {
+      toast.error(
+        err?.message || "Unable to refresh the lists."
+      );
     }
+  };
+
+  // Open the custom confirmation modal.
+  const askForConfirmation = (action) => {
+    setConfirmAction(action);
+  };
+
+  // All confirmation actions are handled here.
+  const handleConfirmAction = async () => {
+    if (!confirmAction || isBusy) return;
+
+    const { type, person } = confirmAction;
+    const name = getName(person);
 
     try {
       setBusyId(person._id);
-      setError("");
-      setSuccess("");
 
-      const result = await makeAgent(person._id).unwrap();
+      if (type === "status") {
+        setChangingStatus(true);
 
-      if (result?.success === false) {
-        throw new Error(
-          result.message || "Unable to change account role."
+        const currentlyActive = isActive(person);
+
+        const response = await fetch(
+          `${API}/users/${person._id}/status`,
+          {
+            method: "PATCH",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || result.success === false) {
+          throw new Error(
+            result.message || "Unable to update agent status."
+          );
+        }
+
+        await refreshLists();
+
+        toast.success(
+          `${name} has been ${
+            currentlyActive ? "deactivated" : "activated"
+          } successfully.`
         );
       }
 
-      await Promise.all([
-        refetchAgents(),
-        refetchUsers(),
-      ]);
+      if (type === "makeAgent") {
+        const result = await makeAgent(person._id).unwrap();
 
-      setSuccess(`${name} is now a support agent.`);
-      return true;
+        if (result?.success === false) {
+          throw new Error(
+            result.message || "Unable to assign agent role."
+          );
+        }
+
+        await refreshLists();
+
+        toast.success(`${name} is now a support agent.`);
+
+        setModalOpen(false);
+        setSelectedUserId("");
+        setUserSearch("");
+      }
+
+      if (type === "removeAgent") {
+        const result = await removeAgent(person._id).unwrap();
+
+        if (result?.success === false) {
+          throw new Error(
+            result.message || "Unable to remove agent role."
+          );
+        }
+
+        await refreshLists();
+
+        toast.success(`${name} has been moved back to customers.`);
+      }
+
+      setConfirmAction(null);
     } catch (err) {
-      setError(
+      toast.error(
         err?.data?.message ||
           err?.message ||
-          "Unable to change account role."
+          "The requested action could not be completed."
       );
-      return false;
     } finally {
       setBusyId(null);
+      setChangingStatus(false);
     }
   };
 
-  const handleAddAgent = async (e) => {
-    e.preventDefault();
+  const handleAddAgent = (event) => {
+    event.preventDefault();
+
+    if (isBusy) return;
 
     if (!selectedUserId) {
-      setError("Please select a customer first.");
+      toast.warning("Please select a customer first.");
       return;
     }
 
@@ -249,62 +319,76 @@ export default function ManageAgents() {
     );
 
     if (!selectedUser) {
-      setError(
-        "Selected customer was not found. Refresh the list."
-      );
+      toast.error("Customer not found. Please refresh the list.");
       return;
     }
 
-    const changed = await changeRole(selectedUser);
-
-    if (changed) {
-      setModalOpen(false);
-      setSelectedUserId("");
-      setUserSearch("");
-    }
+    askForConfirmation({
+      type: "makeAgent",
+      person: selectedUser,
+    });
   };
 
-  // Return an agent to the customer role.
-  const handleRemoveAgent = async (agent) => {
-    const name = getName(agent);
-
-    if (
-      !window.confirm(
-        `Are you sure you want to make ${name} a customer?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      setBusyId(agent._id);
-      setError("");
-      setSuccess("");
-
-      const result = await removeAgent(agent._id).unwrap();
-
-      if (result?.success === false) {
-        throw new Error(
-          result.message || "Unable to remove agent role."
-        );
-      }
-
-      await Promise.all([
-        refetchAgents(),
-        refetchUsers(),
-      ]);
-
-      setSuccess(`${name} has been moved back to customers.`);
-    } catch (err) {
-      setError(
-        err?.data?.message ||
-          err?.message ||
-          "Unable to remove agent role."
-      );
-    } finally {
-      setBusyId(null);
-    }
+  const handleRemoveAgent = (agent) => {
+    askForConfirmation({
+      type: "removeAgent",
+      person: agent,
+    });
   };
+
+  const handleToggleStatus = (agent) => {
+    askForConfirmation({
+      type: "status",
+      person: agent,
+    });
+  };
+
+  const closeAddModal = () => {
+    if (isBusy || confirmAction) return;
+
+    setModalOpen(false);
+    setSelectedUserId("");
+    setUserSearch("");
+  };
+
+  const confirmationDetails = (() => {
+    if (!confirmAction) return null;
+
+    const { type, person } = confirmAction;
+    const name = getName(person);
+
+    if (type === "status") {
+      const active = isActive(person);
+
+      return {
+        title: active ? "Deactivate Agent?" : "Activate Agent?",
+        message: active
+          ? `Are you sure you want to deactivate ${name}? This changes the account status to inactive.`
+          : `Are you sure you want to activate ${name}? This changes the account status to active.`,
+        buttonText: active ? "Deactivate Agent" : "Activate Agent",
+        destructive: active,
+        icon: Power,
+      };
+    }
+
+    if (type === "makeAgent") {
+      return {
+        title: "Add Support Agent?",
+        message: `Are you sure you want to promote ${name} to a support agent?`,
+        buttonText: "Make Agent",
+        destructive: false,
+        icon: UserPlus,
+      };
+    }
+
+    return {
+      title: "Remove Agent Role?",
+      message: `Are you sure you want to change ${name} back to a customer?`,
+      buttonText: "Make Customer",
+      destructive: true,
+      icon: ArrowLeftRight,
+    };
+  })();
 
   return (
     <div className="min-h-full space-y-6 pb-8">
@@ -329,21 +413,21 @@ export default function ManageAgents() {
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={fetchingAgents}
+            disabled={fetchingAgents || isBusy}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-5 py-3 text-sm font-semibold text-[#0f3d28] transition hover:border-[#1f7a4d]/40 hover:bg-[#f7f7f5] disabled:opacity-50"
           >
             <RefreshCw
               size={16}
               className={fetchingAgents ? "animate-spin" : ""}
             />
-            Refresh
+            {fetchingAgents ? "Refreshing..." : "Refresh"}
           </button>
 
           <button
             type="button"
             onClick={() => {
-              setError("");
-              setSuccess("");
+              setSelectedUserId("");
+              setUserSearch("");
               setModalOpen(true);
             }}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/20 transition hover:brightness-110"
@@ -354,48 +438,31 @@ export default function ManageAgents() {
         </div>
       </div>
 
-      {/* Alerts */}
-      {error && (
+      {/* Query error */}
+      {agentsError && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <AlertCircle
-            size={19}
-            className="mt-0.5 shrink-0"
-          />
-          <span className="flex-1">{error}</span>
+          <AlertCircle size={19} className="mt-0.5 shrink-0" />
+          <span className="flex-1">
+            {agentQueryError?.data?.message ||
+              agentQueryError?.error ||
+              "Failed to load agents."}
+          </span>
           <button
             type="button"
-            onClick={() => setError("")}
-            aria-label="Dismiss error"
-            className="rounded-lg p-1 transition hover:bg-red-100"
+            onClick={handleRefresh}
+            className="font-semibold underline"
           >
-            <X size={17} />
+            Retry
           </button>
         </div>
       )}
 
-      {success && (
-        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          <CheckCircle2
-            size={19}
-            className="mt-0.5 shrink-0"
-          />
-          <span className="flex-1">{success}</span>
-          <button
-            type="button"
-            onClick={() => setSuccess("")}
-            aria-label="Dismiss success"
-            className="rounded-lg p-1 transition hover:bg-emerald-100"
-          >
-            <X size={17} />
-          </button>
-        </div>
-      )}
-
-      {agentsError && !error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {agentQueryError?.data?.message ||
-            agentQueryError?.error ||
-            "Failed to load agents."}
+      {usersError && (
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <AlertCircle size={18} />
+          <span>
+            Could not load all customers. Refresh before adding an agent.
+          </span>
         </div>
       )}
 
@@ -412,7 +479,7 @@ export default function ManageAgents() {
         <StatCard
           title="Active Agents"
           value={activeCount}
-          description="Accounts currently enabled"
+          description="Status is true"
           icon={<UserCheck size={22} />}
           color="green"
         />
@@ -420,7 +487,7 @@ export default function ManageAgents() {
         <StatCard
           title="Inactive Agents"
           value={inactiveCount}
-          description="Accounts currently disabled"
+          description="Status is false or missing"
           icon={<UserX size={22} />}
           color="red"
         />
@@ -464,7 +531,6 @@ export default function ManageAgents() {
           </div>
         </div>
 
-        {/* Directory summary */}
         <div className="flex flex-wrap items-center justify-between gap-2 bg-[#fafaf8] px-5 py-3 text-xs text-neutral-500">
           <span>
             Showing{" "}
@@ -527,18 +593,10 @@ export default function ManageAgents() {
             <table className="w-full min-w-[950px] text-left">
               <thead className="bg-[#f7f7f5] text-xs uppercase tracking-wider text-neutral-500">
                 <tr>
-                  <th className="px-5 py-4 font-semibold">
-                    Agent
-                  </th>
-                  <th className="px-5 py-4 font-semibold">
-                    Phone
-                  </th>
-                  <th className="px-5 py-4 font-semibold">
-                    Joined
-                  </th>
-                  <th className="px-5 py-4 font-semibold">
-                    Status
-                  </th>
+                  <th className="px-5 py-4 font-semibold">Agent</th>
+                  <th className="px-5 py-4 font-semibold">Phone</th>
+                  <th className="px-5 py-4 font-semibold">Joined</th>
+                  <th className="px-5 py-4 font-semibold">Status</th>
                   <th className="px-5 py-4 text-right font-semibold">
                     Actions
                   </th>
@@ -566,10 +624,7 @@ export default function ManageAgents() {
                               {getName(agent)}
                             </p>
                             <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">
-                              <Mail
-                                size={13}
-                                className="shrink-0"
-                              />
+                              <Mail size={13} className="shrink-0" />
                               <span className="truncate">
                                 {getEmail(agent) || "No email"}
                               </span>
@@ -580,74 +635,48 @@ export default function ManageAgents() {
 
                       <td className="px-5 py-4 text-sm text-neutral-600">
                         <span className="inline-flex items-center gap-2">
-                          <Phone
-                            size={14}
-                            className="text-neutral-400"
-                          />
+                          <Phone size={14} className="text-neutral-400" />
                           {getPhone(agent)}
                         </span>
                       </td>
 
                       <td className="px-5 py-4 text-sm text-neutral-600">
                         <span className="inline-flex items-center gap-2">
-                          <CalendarDays
-                            size={14}
-                            className="text-neutral-400"
-                          />
+                          <CalendarDays size={14} className="text-neutral-400" />
                           {formatDate(getDate(agent))}
                         </span>
                       </td>
 
                       <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                            active
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-red-50 text-red-700"
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              active
-                                ? "bg-emerald-500"
-                                : "bg-red-500"
-                            }`}
-                          />
-                          {active ? "Active" : "Inactive"}
-                        </span>
+                        <StatusBadge active={active} />
                       </td>
 
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
-                            disabled={busy}
-                            onClick={() =>
-                              toggleAgentStatus(agent, {
-                                API,
-                                setBusyId,
-                                setError,
-                                setSuccess,
-                                refetchAgents,
-                                refetchUsers,
-                              })
-                            }
+                            disabled={isBusy}
+                            onClick={() => handleToggleStatus(agent)}
                             className={`rounded-full px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                               active
                                 ? "bg-red-50 text-red-700 hover:bg-red-100"
                                 : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                             }`}
                           >
-                            {busy
-                              ? "Updating..."
-                              : active
-                                ? "Deactivate"
-                                : "Activate"}
+                            {busy && changingStatus ? (
+                              <LoaderCircle
+                                size={14}
+                                className="inline animate-spin"
+                              />
+                            ) : (
+                              <Power size={14} className="mr-1 inline" />
+                            )}
+                            {active ? "Deactivate" : "Activate"}
                           </button>
 
                           <button
                             type="button"
-                            disabled={busy}
+                            disabled={isBusy}
                             onClick={() => handleRemoveAgent(agent)}
                             className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 px-4 py-2 text-xs font-semibold text-[#0f3d28] transition hover:border-[#1f7a4d]/40 hover:bg-[#1f7a4d]/5 disabled:cursor-not-allowed disabled:opacity-50"
                           >
@@ -668,15 +697,9 @@ export default function ManageAgents() {
       {/* Add agent modal */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#071b12]/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-[#071b12]/50 p-4 backdrop-blur-sm"
           onClick={(e) => {
-            if (
-              e.target === e.currentTarget &&
-              busyId === null &&
-              !makingAgent
-            ) {
-              setModalOpen(false);
-            }
+            if (e.target === e.currentTarget) closeAddModal();
           }}
         >
           <div
@@ -703,8 +726,8 @@ export default function ManageAgents() {
 
               <button
                 type="button"
-                disabled={busyId !== null || makingAgent}
-                onClick={() => setModalOpen(false)}
+                onClick={closeAddModal}
+                disabled={isBusy}
                 className="rounded-full p-2.5 text-neutral-500 transition hover:bg-[#f7f7f5] hover:text-[#0f3d28] disabled:opacity-50"
               >
                 <X size={19} />
@@ -811,8 +834,8 @@ export default function ManageAgents() {
               <div className="flex flex-col-reverse gap-3 border-t border-neutral-100 pt-4 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  disabled={busyId !== null || makingAgent}
-                  onClick={() => setModalOpen(false)}
+                  disabled={isBusy}
+                  onClick={closeAddModal}
                   className="rounded-full border border-neutral-200 px-5 py-3 text-sm font-semibold text-neutral-600 transition hover:bg-[#f7f7f5] disabled:opacity-50"
                 >
                   Cancel
@@ -822,22 +845,83 @@ export default function ManageAgents() {
                   type="submit"
                   disabled={
                     !selectedUserId ||
-                    busyId !== null ||
-                    makingAgent
+                    isBusy ||
+                    loadingUsers ||
+                    usersError
                   }
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {makingAgent ? (
-                    <RefreshCw size={16} className="animate-spin" />
-                  ) : (
-                    <UserPlus size={16} />
-                  )}
-                  {makingAgent || busyId
-                    ? "Updating..."
-                    : "Make Agent"}
+                  <UserPlus size={16} />
+                  Make Agent
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reusable confirmation modal */}
+      {confirmAction && confirmationDetails && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#071b12]/60 p-4 backdrop-blur-sm">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+            aria-describedby="confirm-message"
+            className="w-full max-w-md rounded-3xl border border-neutral-200 bg-white p-6 shadow-2xl"
+          >
+            <div
+              className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${
+                confirmationDetails.destructive
+                  ? "bg-red-50 text-red-600"
+                  : "bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              <confirmationDetails.icon size={24} />
+            </div>
+
+            <h2
+              id="confirm-title"
+              className="text-xl font-bold text-[#0f3d28]"
+            >
+              {confirmationDetails.title}
+            </h2>
+
+            <p
+              id="confirm-message"
+              className="mt-2 text-sm leading-6 text-neutral-500"
+            >
+              {confirmationDetails.message}
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => setConfirmAction(null)}
+                className="rounded-full border border-neutral-200 px-5 py-3 text-sm font-semibold text-neutral-600 transition hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={handleConfirmAction}
+                className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  confirmationDetails.destructive
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-gradient-to-r from-[#1b7048] to-[#0d3b27] hover:brightness-110"
+                }`}
+              >
+                {isBusy ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
+                {isBusy ? "Please wait..." : confirmationDetails.buttonText}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -845,78 +929,23 @@ export default function ManageAgents() {
   );
 }
 
-async function toggleAgentStatus(
-  agent,
-  {
-    API,
-    setBusyId,
-    setError,
-    setSuccess,
-    refetchAgents,
-    refetchUsers,
-  }
-) {
-  const active =
-    agent.isActive !== undefined
-      ? agent.isActive !== false
-      : agent.IsActive !== false;
-
-  const name =
-    agent.name ||
-    agent.Name ||
-    agent.fullName ||
-    "this agent";
-
-  if (
-    !window.confirm(
-      `${active ? "Deactivate" : "Activate"} ${name}?`
-    )
-  ) {
-    return;
-  }
-
-  try {
-    setBusyId(agent._id);
-    setError("");
-    setSuccess("");
-
-    const res = await fetch(
-      `${API}/users/${agent._id}/status`,
-      {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          isActive: !active,
-        }),
-      }
-    );
-
-    const result = await res.json();
-
-    if (!res.ok || result.success === false) {
-      throw new Error(
-        result.message || "Unable to update agent."
-      );
-    }
-
-    setSuccess(
-      `${name} has been ${active ? "deactivated" : "activated"}.`
-    );
-
-    await Promise.all([
-      refetchAgents(),
-      refetchUsers(),
-    ]);
-  } catch (err) {
-    setError(
-      err.message || "Unable to update agent."
-    );
-  } finally {
-    setBusyId(null);
-  }
+function StatusBadge({ active }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
+        active
+          ? "bg-emerald-50 text-emerald-700"
+          : "bg-red-50 text-red-700"
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          active ? "bg-emerald-500" : "bg-red-500"
+        }`}
+      />
+      {active ? "Active" : "Inactive"}
+    </span>
+  );
 }
 
 function StatCard({

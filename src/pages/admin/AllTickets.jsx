@@ -9,10 +9,13 @@ import {
   AlertCircle,
   Eye,
 } from "lucide-react";
+
 import { useGetAllTicketsQuery } from "../../services/RTK/adminApi";
+import { useToast } from "../../components/common/ToastProvider";
 
 export default function AllTickets() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -27,19 +30,46 @@ export default function AllTickets() {
     refetch,
   } = useGetAllTicketsQuery();
 
-  // Backend returns: { totalTicket, assignTicket, unAssinTicket }
+  // Backend response: { totalTicket, assignTicket, unAssinTicket }
   const tickets = Array.isArray(data?.totalTicket)
     ? data.totalTicket
     : [];
 
+  const getStatus = (ticket) =>
+    String(ticket.Status || ticket.status || "open")
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+
+  const getPriority = (ticket) =>
+    String(ticket.Priority || ticket.priority || "medium")
+      .toLowerCase();
+
+  const getRequester = (ticket) => {
+    const requester = ticket.RequesterId || ticket.requesterId;
+
+    return requester && typeof requester === "object"
+      ? requester
+      : null;
+  };
+
+  const getAgent = (ticket) => {
+    const agent = ticket.AssignedTo || ticket.assignedTo;
+
+    return agent && typeof agent === "object"
+      ? agent
+      : null;
+  };
+
   const filteredTickets = tickets.filter((ticket) => {
-    const query = search.toLowerCase();
+    const query = search.trim().toLowerCase();
+
+    const requester = getRequester(ticket);
 
     const requesterEmail =
       ticket.RequesterEmail ||
       ticket.requesterEmail ||
-      ticket.RequesterId?.Email ||
-      ticket.requesterId?.email ||
+      requester?.Email ||
+      requester?.email ||
       "";
 
     const ticketNumber = String(
@@ -50,18 +80,13 @@ export default function AllTickets() {
       ticket.Subject || ticket.subject || ""
     );
 
-    const ticketStatus = String(
-      ticket.Status || ticket.status || ""
-    ).toLowerCase();
-
-    const ticketPriority = String(
-      ticket.Priority || ticket.priority || ""
-    ).toLowerCase();
+    const ticketStatus = getStatus(ticket);
+    const ticketPriority = getPriority(ticket);
 
     const matchesSearch =
       ticketNumber.toLowerCase().includes(query) ||
       subject.toLowerCase().includes(query) ||
-      requesterEmail.toLowerCase().includes(query);
+      String(requesterEmail).toLowerCase().includes(query);
 
     const matchesStatus =
       status === "all" || ticketStatus === status;
@@ -71,12 +96,6 @@ export default function AllTickets() {
 
     return matchesSearch && matchesStatus && matchesPriority;
   });
-
-  const getStatus = (ticket) =>
-    String(ticket.Status || ticket.status || "open").toLowerCase();
-
-  const getPriority = (ticket) =>
-    String(ticket.Priority || ticket.priority || "medium").toLowerCase();
 
   const openCount = tickets.filter(
     (ticket) => getStatus(ticket) === "open"
@@ -104,41 +123,66 @@ export default function AllTickets() {
     closed: "bg-neutral-100 text-neutral-500 ring-neutral-200",
   };
 
-  const getRequester = (ticket) => {
-    const requester =
-      ticket.RequesterId || ticket.requesterId;
+  const handleRefresh = async () => {
+    try {
+      const result = await refetch().unwrap();
 
-    return requester && typeof requester === "object"
-      ? requester
-      : null;
+      if (result?.success === false) {
+        throw new Error(
+          result.message || "Unable to refresh tickets."
+        );
+      }
+
+      toast.success("Tickets refreshed successfully");
+    } catch (err) {
+      toast.error(
+        err?.data?.message ||
+          err?.message ||
+          "Failed to refresh tickets. Please try again."
+      );
+    }
   };
 
-  const getAgent = (ticket) => {
-    const agent =
-      ticket.AssignedTo || ticket.assignedTo;
+  const handleRetry = async () => {
+    try {
+      const result = await refetch().unwrap();
 
-    return agent && typeof agent === "object"
-      ? agent
-      : null;
+      if (result?.success === false) {
+        throw new Error(
+          result.message || "Unable to load tickets."
+        );
+      }
+
+      toast.success("Tickets loaded successfully");
+    } catch (err) {
+      toast.error(
+        err?.data?.message ||
+          err?.message ||
+          "Unable to load tickets. Please try again."
+      );
+    }
   };
 
   return (
     <div className="min-h-full">
       <div className="space-y-5">
+
+        {/* Header */}
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <h1 className="text-4xl font-semibold tracking-tight text-[#0f3d28] sm:text-5xl">
               All Tickets
             </h1>
+
             <p className="mt-2 text-sm text-neutral-500 sm:text-base">
               Monitor and manage all customer support tickets.
             </p>
           </div>
 
           <button
-            onClick={refetch}
+            onClick={handleRefresh}
             disabled={isFetching}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/20 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1b7048] to-[#0d3b27] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#0d3b27]/20 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4d]/50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw
               size={16}
@@ -148,6 +192,7 @@ export default function AllTickets() {
           </button>
         </div>
 
+        {/* Statistics */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             featured
@@ -155,16 +200,19 @@ export default function AllTickets() {
             value={data?.totalCount ?? tickets.length}
             icon={<Ticket size={20} />}
           />
+
           <StatCard
             title="Open Tickets"
             value={openCount}
             icon={<AlertCircle size={20} />}
           />
+
           <StatCard
             title="In Progress"
             value={inProgressCount}
             icon={<Clock size={20} />}
           />
+
           <StatCard
             title="Resolved"
             value={resolvedCount}
@@ -172,26 +220,37 @@ export default function AllTickets() {
           />
         </div>
 
+        {/* Error state */}
         {isError && (
-          <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error?.data?.message ||
-              error?.error ||
-              "Failed to load tickets. Please try again."}
+          <div className="flex flex-col justify-between gap-3 rounded-3xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-2 text-sm text-red-700">
+              <AlertCircle size={18} className="mt-0.5 shrink-0" />
+
+              <span>
+                {error?.data?.message ||
+                  error?.error ||
+                  "Failed to load tickets. Please try again."}
+              </span>
+            </div>
+
             <button
-              onClick={refetch}
-              className="ml-3 font-semibold underline"
+              onClick={handleRetry}
+              disabled={isFetching}
+              className="self-start rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60 sm:self-auto"
             >
-              Retry
+              {isFetching ? "Retrying..." : "Retry"}
             </button>
           </div>
         )}
 
+        {/* Search and filters */}
         <div className="grid grid-cols-1 gap-3 rounded-3xl bg-white p-4 sm:p-5 md:grid-cols-3">
           <div className="relative">
             <Search
               size={18}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
             />
+
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -225,6 +284,7 @@ export default function AllTickets() {
           </select>
         </div>
 
+        {/* Tickets table */}
         <div className="overflow-hidden rounded-3xl bg-white">
           {isLoading ? (
             <div className="flex items-center justify-center gap-3 p-12 text-neutral-500">
@@ -239,9 +299,11 @@ export default function AllTickets() {
               <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#1f7a4d]/10 text-[#1f7a4d]">
                 <Ticket size={28} />
               </div>
+
               <h3 className="font-semibold text-neutral-800">
                 No tickets found
               </h3>
+
               <p className="mt-1 text-sm text-neutral-500">
                 Try changing your search or filters.
               </p>
@@ -254,13 +316,27 @@ export default function AllTickets() {
                     <th className="rounded-l-2xl px-5 py-3.5 font-medium">
                       Ticket
                     </th>
-                    <th className="px-5 py-3.5 font-medium">Requester</th>
+
+                    <th className="px-5 py-3.5 font-medium">
+                      Requester
+                    </th>
+
                     <th className="px-5 py-3.5 font-medium">
                       Assigned Agent
                     </th>
-                    <th className="px-5 py-3.5 font-medium">Priority</th>
-                    <th className="px-5 py-3.5 font-medium">Status</th>
-                    <th className="px-5 py-3.5 font-medium">Created</th>
+
+                    <th className="px-5 py-3.5 font-medium">
+                      Priority
+                    </th>
+
+                    <th className="px-5 py-3.5 font-medium">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-3.5 font-medium">
+                      Created
+                    </th>
+
                     <th className="rounded-r-2xl px-5 py-3.5 font-medium">
                       Action
                     </th>
@@ -279,10 +355,10 @@ export default function AllTickets() {
                       ticket.ticketNumber ||
                       ticket._id;
 
-                    const subject =
-                      ticket.Subject ||
-                      ticket.subject ||
-                      "Untitled ticket";
+                    const requesterName =
+                      requester?.Name ||
+                      requester?.name ||
+                      "Customer";
 
                     const requesterEmail =
                       ticket.RequesterEmail ||
@@ -290,11 +366,6 @@ export default function AllTickets() {
                       requester?.Email ||
                       requester?.email ||
                       "—";
-
-                    const requesterName =
-                      requester?.Name ||
-                      requester?.name ||
-                      "Customer";
 
                     const agentName =
                       agent?.Name ||
@@ -310,17 +381,25 @@ export default function AllTickets() {
                         className="transition hover:bg-[#f7f7f5]"
                       >
                         <td className="px-5 py-4">
-                          <span className="rounded-full bg-[#1f7a4d]/10 px-2.5 py-1 text-xs font-bold text-[#1f7a4d]">
-                            {ticketNumber}
-                          </span>
-                        
+                          <div>
+                            <span className="rounded-full bg-[#1f7a4d]/10 px-2.5 py-1 text-xs font-bold text-[#1f7a4d]">
+                              {ticketNumber}
+                            </span>
+
+                            <p className="mt-2 max-w-[220px] truncate text-sm font-medium text-neutral-800">
+                              {ticket.Subject ||
+                                ticket.subject ||
+                                "Untitled ticket"}
+                            </p>
+                          </div>
                         </td>
 
                         <td className="px-5 py-4 text-sm text-neutral-600">
                           <p className="font-medium text-neutral-800">
                             {requesterName}
                           </p>
-                          <p className="text-neutral-500">
+
+                          <p className="max-w-[220px] truncate text-neutral-500">
                             {requesterEmail}
                           </p>
                         </td>
@@ -348,13 +427,14 @@ export default function AllTickets() {
                             }`}
                           >
                             <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                            {ticketStatus}
+                            {ticketStatus.replace(/-/g, " ")}
                           </span>
                         </td>
 
-                        <td className="px-5 py-4 text-sm text-neutral-500">
-                          {createdAt
-                            ? new Date(createdAt).toLocaleDateString()
+                        <td className="whitespace-nowrap px-5 py-4 text-sm text-neutral-500">
+                          {createdAt &&
+                          !Number.isNaN(new Date(createdAt).getTime())
+                            ? new Date(createdAt).toLocaleDateString("en-IN")
                             : "—"}
                         </td>
 
@@ -378,13 +458,16 @@ export default function AllTickets() {
           )}
         </div>
 
+        {/* Footer */}
         <p className="px-1 text-sm text-neutral-500">
           Showing{" "}
           <strong className="text-[#0f3d28]">
             {filteredTickets.length}
           </strong>{" "}
           of{" "}
-          <strong className="text-[#0f3d28]">{tickets.length}</strong>{" "}
+          <strong className="text-[#0f3d28]">
+            {tickets.length}
+          </strong>{" "}
           tickets
         </p>
       </div>
@@ -392,7 +475,12 @@ export default function AllTickets() {
   );
 }
 
-function StatCard({ title, value, icon, featured = false }) {
+function StatCard({
+  title,
+  value,
+  icon,
+  featured = false,
+}) {
   return (
     <div
       className={`relative overflow-hidden rounded-3xl p-5 sm:p-6 ${
@@ -407,6 +495,7 @@ function StatCard({ title, value, icon, featured = false }) {
 
       <div className="flex items-start justify-between gap-3">
         <span className="text-base font-medium">{title}</span>
+
         <span
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
             featured
@@ -417,6 +506,7 @@ function StatCard({ title, value, icon, featured = false }) {
           {icon}
         </span>
       </div>
+
       <p className="mt-4 text-5xl font-semibold tracking-tight">
         {value}
       </p>

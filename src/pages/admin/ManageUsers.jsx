@@ -1,5 +1,4 @@
 
-
 import { useMemo, useState } from "react";
 import {
   Search,
@@ -9,7 +8,6 @@ import {
   Mail,
   CalendarDays,
   ShieldCheck,
-  ShieldAlert,
   CheckCircle2,
   XCircle,
   Eye,
@@ -18,9 +16,11 @@ import {
   Filter,
   AlertCircle,
   LoaderCircle,
+  ShieldAlert,
 } from "lucide-react";
 
 import { useGetUserListQuery } from "../../services/RTK/adminApi";
+import { useToast } from "../../components/common/ToastProvider";
 
 const API = (
   import.meta.env.VITE_API_URL ||
@@ -35,14 +35,13 @@ const getUserName = (user) =>
   "Unknown User";
 
 const getUserEmail = (user) =>
-  user?.Email ||
-  user?.email ||
-  "No email available";
+  user?.Email || user?.email || "No email available";
 
 const getUserRole = (user) =>
-  user?.Role ||
-  user?.role ||
-  "user";
+  user?.Role || user?.role || "user";
+
+// Status true = Active, false = Inactive
+const isActive = (user) => user?.Status === true;
 
 const getUserDate = (user) => {
   const date =
@@ -65,11 +64,8 @@ const getUserDate = (user) => {
   });
 };
 
-// Status true = Active, false = Inactive
-const isActive = (user) => user?.Status === true;
-
 const getInitials = (name) =>
-  name
+  String(name || "")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -77,7 +73,7 @@ const getInitials = (name) =>
     .join("");
 
 const formatRole = (role) => {
-  const normalizedRole = String(role).toLowerCase();
+  const normalizedRole = String(role || "user").toLowerCase();
 
   if (normalizedRole === "admin") return "Admin";
 
@@ -93,6 +89,8 @@ const formatRole = (role) => {
 };
 
 export default function ManageUsers() {
+  const { toast } = useToast();
+
   const {
     data,
     isLoading,
@@ -107,10 +105,9 @@ export default function ManageUsers() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
-  const [notice, setNotice] = useState(null);
-  const [requestError, setRequestError] = useState("");
+  const [confirmUser, setConfirmUser] = useState(null);
 
-  // Handle different possible API response structures.
+  // Support multiple possible API response structures.
   const users = useMemo(() => {
     const candidates = [
       data?.users,
@@ -142,8 +139,7 @@ export default function ManageUsers() {
         role.includes(query);
 
       const matchesRole =
-        roleFilter === "all" ||
-        role === roleFilter;
+        roleFilter === "all" || role === roleFilter;
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -157,28 +153,27 @@ export default function ManageUsers() {
   const activeCount = users.filter(isActive).length;
   const inactiveCount = users.length - activeCount;
 
-  const showNotice = (message, type = "success") => {
-    setNotice({ message, type });
-
-    // Clear the notice when another action occurs or the component updates.
-    // No timer is needed for the functionality.
+  const clearFilters = () => {
+    setSearch("");
+    setRoleFilter("all");
+    setStatusFilter("all");
   };
 
-  const toggleStatus = async (user) => {
+  // Open custom confirmation modal.
+  const openStatusConfirmation = (user) => {
+    if (!user?._id || updatingId) return;
+    setConfirmUser(user);
+  };
+
+  // Update account status after confirmation.
+  const toggleStatus = async () => {
+    const user = confirmUser;
+
     if (!user?._id || updatingId) return;
 
     const currentlyActive = isActive(user);
-    const action = currentlyActive ? "deactivate" : "activate";
-
-    const confirmed = window.confirm(
-      `Are you sure you want to ${action} ${getUserName(user)}?`
-    );
-
-    if (!confirmed) return;
-
     setUpdatingId(user._id);
-    setRequestError("");
-    setNotice(null);
+    setConfirmUser(null);
 
     try {
       const response = await fetch(
@@ -200,40 +195,30 @@ export default function ManageUsers() {
         );
       }
 
-      // Backend should toggle Status using:
-      // user.Status = !user.Status;
-      // await user.save();
+      // Refresh data from the backend.
+      await refetch().unwrap();
 
-      showNotice(
-        `${getUserName(user)} has been ${
-          currentlyActive ? "deactivated" : "activated"
-        } successfully.`
-      );
-
-      // Refresh the latest Status values from MongoDB.
-      await refetch();
-
-      // Refresh the selected user's details if its modal is open.
+      // Keep the open details modal in sync.
       setSelectedUser((current) =>
         current?._id === user._id
           ? { ...current, Status: !currentlyActive }
           : current
       );
-    } catch (err) {
-      const message =
-        err.message || "Failed to update user status.";
 
-      setRequestError(message);
-      showNotice(message, "error");
+      toast.success(
+        `${getUserName(user)} has been ${
+          currentlyActive ? "deactivated" : "activated"
+        } successfully.`
+      );
+    } catch (err) {
+      toast.error(
+        err?.data?.message ||
+          err?.message ||
+          "Failed to update user status."
+      );
     } finally {
       setUpdatingId(null);
     }
-  };
-
-  const clearFilters = () => {
-    setSearch("");
-    setRoleFilter("all");
-    setStatusFilter("all");
   };
 
   if (isLoading) {
@@ -299,10 +284,15 @@ export default function ManageUsers() {
           </div>
 
           <button
-            onClick={() => {
-              setNotice(null);
-              setRequestError("");
-              refetch();
+            onClick={async () => {
+              try {
+                await refetch().unwrap();
+                toast.success("User list refreshed successfully.");
+              } catch (err) {
+                toast.error(
+                  err?.data?.message || "Failed to refresh users."
+                );
+              }
             }}
             disabled={isFetching}
             className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
@@ -314,39 +304,6 @@ export default function ManageUsers() {
             Refresh
           </button>
         </div>
-
-        {/* Notification */}
-        {notice && (
-          <div
-            className={`flex items-start gap-3 rounded-xl border p-4 ${
-              notice.type === "error"
-                ? "border-red-200 bg-red-50 text-red-700"
-                : "border-emerald-200 bg-emerald-50 text-emerald-800"
-            }`}
-          >
-            {notice.type === "error" ? (
-              <AlertCircle size={19} className="mt-0.5 shrink-0" />
-            ) : (
-              <CheckCircle2 size={19} className="mt-0.5 shrink-0" />
-            )}
-
-            <p className="flex-1 text-sm font-medium">
-              {notice.message}
-            </p>
-
-            <button
-              onClick={() => setNotice(null)}
-              className="rounded-md p-1 transition hover:bg-black/5"
-              aria-label="Dismiss notification"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
-
-        {requestError && (
-          <p className="text-sm text-red-600">{requestError}</p>
-        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -375,11 +332,10 @@ export default function ManageUsers() {
           />
         </div>
 
-        {/* Search and filters */}
+        {/* Search and Filters */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-4 flex items-center gap-2">
             <Filter size={17} className="text-emerald-600" />
-
             <h2 className="font-semibold text-slate-900">
               Search and Filters
             </h2>
@@ -410,6 +366,7 @@ export default function ManageUsers() {
               <option value="user">User</option>
               <option value="admin">Admin</option>
               <option value="supportagent">Support Agent</option>
+              <option value="support_agent">Support Agent</option>
             </select>
 
             <select
@@ -431,14 +388,11 @@ export default function ManageUsers() {
           </div>
         </div>
 
-        {/* Users table */}
+        {/* Users Table */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
             <div>
-              <h2 className="font-bold text-slate-900">
-                All Users
-              </h2>
-
+              <h2 className="font-bold text-slate-900">All Users</h2>
               <p className="mt-1 text-xs text-slate-500">
                 Showing {filteredUsers.length} of {users.length} users
               </p>
@@ -481,19 +435,15 @@ export default function ManageUsers() {
                     <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
                       User
                     </th>
-
                     <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Role
                     </th>
-
                     <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Joined
                     </th>
-
                     <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Status
                     </th>
-
                     <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Actions
                     </th>
@@ -510,7 +460,6 @@ export default function ManageUsers() {
                         key={user._id}
                         className="transition hover:bg-slate-50/80"
                       >
-                        {/* User */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-sm font-bold text-emerald-700">
@@ -532,7 +481,6 @@ export default function ManageUsers() {
                           </div>
                         </td>
 
-                        {/* Role */}
                         <td className="px-5 py-4">
                           <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
                             <ShieldCheck size={13} />
@@ -540,7 +488,6 @@ export default function ManageUsers() {
                           </span>
                         </td>
 
-                        {/* Joined */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2 text-sm text-slate-600">
                             <CalendarDays
@@ -551,19 +498,14 @@ export default function ManageUsers() {
                           </div>
                         </td>
 
-                        {/* Status */}
                         <td className="px-5 py-4">
                           <StatusBadge active={active} />
                         </td>
 
-                        {/* Actions */}
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setNotice(null);
-                              }}
+                              onClick={() => setSelectedUser(user)}
                               title="View user details"
                               aria-label={`View ${getUserName(user)}`}
                               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
@@ -572,9 +514,15 @@ export default function ManageUsers() {
                             </button>
 
                             <button
-                              onClick={() => toggleStatus(user)}
+                              onClick={() =>
+                                openStatusConfirmation(user)
+                              }
                               disabled={Boolean(updatingId)}
-                              title={active ? "Deactivate user" : "Activate user"}
+                              title={
+                                active
+                                  ? "Deactivate user"
+                                  : "Activate user"
+                              }
                               className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                 active
                                   ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
@@ -607,10 +555,10 @@ export default function ManageUsers() {
           )}
         </div>
 
-        {/* User details modal */}
+        {/* User Details Modal */}
         {selectedUser && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4 backdrop-blur-sm"
             onClick={() => setSelectedUser(null)}
           >
             <div
@@ -620,7 +568,6 @@ export default function ManageUsers() {
               className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
-              {/* Modal header */}
               <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                 <div>
                   <h2
@@ -629,7 +576,6 @@ export default function ManageUsers() {
                   >
                     User Details
                   </h2>
-
                   <p className="mt-1 text-sm text-slate-500">
                     Account information and current status
                   </p>
@@ -644,7 +590,6 @@ export default function ManageUsers() {
                 </button>
               </div>
 
-              {/* User profile */}
               <div className="px-6 py-6">
                 <div className="flex flex-col items-center text-center">
                   <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-50 text-2xl font-bold text-emerald-700">
@@ -665,7 +610,6 @@ export default function ManageUsers() {
                     <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
                       {formatRole(getUserRole(selectedUser))}
                     </span>
-
                     <StatusBadge active={isActive(selectedUser)} />
                   </div>
                 </div>
@@ -675,29 +619,26 @@ export default function ManageUsers() {
                     label="User ID"
                     value={selectedUser._id || "Not available"}
                   />
-
                   <DetailRow
                     label="Email"
                     value={getUserEmail(selectedUser)}
                   />
-
                   <DetailRow
                     label="Role"
                     value={formatRole(getUserRole(selectedUser))}
                   />
-
                   <DetailRow
                     label="Account Status"
-                    value={isActive(selectedUser) ? "Active" : "Inactive"}
+                    value={
+                      isActive(selectedUser) ? "Active" : "Inactive"
+                    }
                   />
-
                   <DetailRow
                     label="Joined Date"
                     value={getUserDate(selectedUser)}
                   />
                 </div>
 
-                {/* Modal actions */}
                 <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
                   <button
                     onClick={() => setSelectedUser(null)}
@@ -707,7 +648,9 @@ export default function ManageUsers() {
                   </button>
 
                   <button
-                    onClick={() => toggleStatus(selectedUser)}
+                    onClick={() =>
+                      openStatusConfirmation(selectedUser)
+                    }
                     disabled={Boolean(updatingId)}
                     className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                       isActive(selectedUser)
@@ -715,20 +658,10 @@ export default function ManageUsers() {
                         : "bg-emerald-600 text-white hover:bg-emerald-700"
                     }`}
                   >
-                    {updatingId === selectedUser._id ? (
-                      <LoaderCircle
-                        size={16}
-                        className="animate-spin"
-                      />
-                    ) : (
-                      <Power size={16} />
-                    )}
-
-                    {updatingId === selectedUser._id
-                      ? "Updating..."
-                      : isActive(selectedUser)
-                        ? "Deactivate User"
-                        : "Activate User"}
+                    <Power size={16} />
+                    {isActive(selectedUser)
+                      ? "Deactivate User"
+                      : "Activate User"}
                   </button>
                 </div>
               </div>
@@ -736,6 +669,91 @@ export default function ManageUsers() {
           </div>
         )}
 
+        {/* Custom Status Confirmation Modal */}
+        {confirmUser && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+            onClick={() => setConfirmUser(null)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="confirm-status-title"
+              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
+                    isActive(confirmUser)
+                      ? "bg-red-50 text-red-600"
+                      : "bg-emerald-50 text-emerald-600"
+                  }`}
+                >
+                  {isActive(confirmUser) ? (
+                    <ShieldAlert size={24} />
+                  ) : (
+                    <ShieldCheck size={24} />
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <h2
+                    id="confirm-status-title"
+                    className="text-lg font-bold text-slate-900"
+                  >
+                    {isActive(confirmUser)
+                      ? "Deactivate User?"
+                      : "Activate User?"}
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Are you sure you want to{" "}
+                    <span className="font-semibold text-slate-800">
+                      {isActive(confirmUser)
+                        ? "deactivate"
+                        : "activate"}
+                    </span>{" "}
+                    <span className="font-semibold text-slate-800">
+                      {getUserName(confirmUser)}
+                    </span>
+                    ?
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setConfirmUser(null)}
+                  aria-label="Close confirmation"
+                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  onClick={() => setConfirmUser(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={toggleStatus}
+                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${
+                    isActive(confirmUser)
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}
+                >
+                  <Power size={15} />
+                  Yes,{" "}
+                  {isActive(confirmUser) ? "Deactivate" : "Activate"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -755,7 +773,6 @@ function StatCard({
           <p className="text-sm font-medium text-slate-500">
             {title}
           </p>
-
           <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             {value}
           </p>
@@ -768,9 +785,7 @@ function StatCard({
         </div>
       </div>
 
-      <p className="mt-3 text-xs text-slate-500">
-        {description}
-      </p>
+      <p className="mt-3 text-xs text-slate-500">{description}</p>
     </div>
   );
 }
@@ -789,7 +804,6 @@ function StatusBadge({ active }) {
           active ? "bg-emerald-500" : "bg-red-500"
         }`}
       />
-
       {active ? "Active" : "Inactive"}
     </span>
   );
@@ -801,7 +815,6 @@ function DetailRow({ label, value }) {
       <span className="shrink-0 text-sm text-slate-500">
         {label}
       </span>
-
       <span className="break-all text-right text-sm font-semibold text-slate-800">
         {value}
       </span>
