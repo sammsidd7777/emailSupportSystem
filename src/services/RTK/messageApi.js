@@ -2,7 +2,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 const API = (
- "https://email-support-system-spi.vercel.app/api/auth"
+ "https://email-support-system-spi.vercel.app/api"
 ).replace(/\/$/, "");
 
 export const messageApi = createApi({
