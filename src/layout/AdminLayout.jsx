@@ -23,6 +23,8 @@ import {
   LifeBuoy,
   PanelLeftClose,
 } from "lucide-react";
+import AdminPushListener from "../pages/admin/AdminPushListener";
+import EnablePushNotifications from "../components/EnablePushNotifications";
 
 const navGroups = [
   {
@@ -63,8 +65,7 @@ const navGroups = [
         path: "/admin/agents",
         icon: Headset,
       },
-   
-  
+    
     ],
   },
 ];
@@ -95,6 +96,7 @@ const AdminLayout = () => {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-[#e9ecea] text-neutral-800">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -329,6 +331,10 @@ const AdminLayout = () => {
         </main>
       </div>
     </div>
+
+    <EnablePushNotifications />
+    <AdminPushListener />
+    </>
   );
 };
 

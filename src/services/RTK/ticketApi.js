@@ -5,7 +5,7 @@ export const ticketApi = createApi({
   reducerPath: "ticketApi",
 
   baseQuery: fetchBaseQuery({
-    baseUrl: "https://email-support-system-spi.vercel.app/api",
+    baseUrl: "https://emailbackend-r71q.onrender.com/api",
     credentials: "include",
   }),
 
