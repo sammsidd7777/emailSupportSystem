@@ -63,16 +63,8 @@ const navGroups = [
         path: "/admin/agents",
         icon: Headset,
       },
-      {
-        name: "Categories",
-        // path: "/admin/categories",
-        icon: FolderKanban,
-      },
-      {
-        name: "Reports & Analytics",
-        // path: "/reports",
-        icon: ChartNoAxesCombined,
-      },
+   
+  
     ],
   },
 ];
